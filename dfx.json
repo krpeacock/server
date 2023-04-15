@@ -1,0 +1,13 @@
+{
+    "canisters": {
+        "demo": {
+            "type": "motoko",
+            "main": "src/demo.mo"
+        }
+    },
+    "defaults": {
+        "build": {
+          "packtool": "npx mops sources"
+        }
+      }
+}

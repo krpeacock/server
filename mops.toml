@@ -1,0 +1,8 @@
+[package]
+name = "server"
+version = "0.1.0"
+description = ""
+repository = ""
+
+[dependencies]
+certified-cache = "0.1.0"
