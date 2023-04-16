@@ -5,14 +5,15 @@ import Text "mo:base/Text";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Debug "mo:base/Debug";
+import HttpParser "http-parser";
 
 module {
-  type HttpFunction = (Http.HttpRequest) -> CacheResponse;
+  type HttpFunction = (HttpParser.ParsedHttpRequest) -> CacheResponse;
   type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
 
   public type CacheResponse = {
     status_code : Nat16;
-    headers : [(Text, Text)];
+    headers : [Http.HeaderField];
     body : Blob;
     streaming_strategy : ?Http.StreamingStrategy;
   };
@@ -26,24 +27,28 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    public func registerGetRequest(url : Text, function : HttpFunction) {
-      getRequests.put(url, function);
-    };
-
-    public func registerPostRequest(url : Text, function : HttpFunction) {
-      postRequests.put(url, function);
-    };
-
-    public func registerPutRequest(url : Text, function : HttpFunction) {
-      putRequests.put(url, function);
-    };
-
-    public func registerDeleteRequest(url : Text, function : HttpFunction) {
-      deleteRequests.put(url, function);
+    public func registerRequest(method : Text, url : Text, function : HttpFunction) {
+      switch (method) {
+        case "GET" {
+          getRequests.put(url, function);
+        };
+        case "POST" {
+          postRequests.put(url, function);
+        };
+        case "PUT" {
+          putRequests.put(url, function);
+        };
+        case "DELETE" {
+          deleteRequests.put(url, function);
+        };
+      };
     };
 
     public func http_request(request : Http.HttpRequest) : Http.HttpResponse {
-      var response = cache.get(request.url);
+      let req = HttpParser.parse(request);
+      let { url } = req;
+      let { path } = url;
+      var response = cache.get(path.original);
       switch response {
         case (?cacheResponse) {
           {
@@ -67,33 +72,39 @@ module {
       };
     };
 
-    public func http_request_update(req : Http.HttpRequest) : Http.HttpResponse {
+    public func http_request_update(request : Http.HttpRequest) : Http.HttpResponse {
       // Application logic to process the request
+      let req = HttpParser.parse(request);
+      let { url } = req;
+      let { path } = url;
+
       let response = process_request(req);
 
       // expiry can be null to use the default expiry
-      cache.put(req.url, response, null);
+      cache.put(path.original, response, null);
       return {
         status_code = response.status_code;
-        headers = Array.append(response.headers, [cache.certificationHeader(req.url)]);
+        headers = response.headers;
         body = response.body;
         streaming_strategy = response.streaming_strategy;
         upgrade = null;
       };
     };
 
-    public func process_request(req : Http.HttpRequest) : CacheResponse {
-      Debug.print("Processing request: " # req.url);
+    public func process_request(req : HttpParser.ParsedHttpRequest) : CacheResponse {
+      Debug.print("Processing request: " # debug_show req.url.original);
       Debug.print("Method: " # req.method);
+      Debug.print("Path: " # req.url.path.original);
       switch (req.method) {
         case "GET" {
-          switch (getRequests.get(req.url)) {
+          switch (getRequests.get(req.url.path.original)) {
             case (?getFunction) {
+              Debug.print("Found GET function");
               getFunction(req);
             };
             case null {
+              Debug.print("No GET function found");
               {
-
                 status_code = 404;
                 headers = [];
                 body = Blob.fromArray([]);
@@ -114,10 +125,11 @@ module {
       };
     };
 
-    public func get(path : Text, handler : (request : Http.HttpRequest, response : Response) -> CacheResponse) {
-      registerGetRequest(
+    public func get(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : Response) -> CacheResponse) {
+      registerRequest(
+        "GET",
         path,
-        func(request : Http.HttpRequest) : CacheResponse {
+        func(request : HttpParser.ParsedHttpRequest) : CacheResponse {
           var response = handler(
             request,
             Response(
@@ -130,58 +142,6 @@ module {
         },
       );
     };
-
-    public func post(path : Text, handler : (request : Http.HttpRequest, response : Response) -> CacheResponse) {
-      registerPostRequest(
-        path,
-        func(request : Http.HttpRequest) : CacheResponse {
-          var response = handler(
-            request,
-            Response(
-              func(res : CacheResponse) : CacheResponse {
-                res;
-              }
-            ),
-          );
-          return response;
-        },
-      );
-    };
-
-    public func put(path : Text, handler : (request : Http.HttpRequest, response : Response) -> CacheResponse) {
-      registerPutRequest(
-        path,
-        func(request : Http.HttpRequest) : CacheResponse {
-          var response = handler(
-            request,
-            Response(
-              func(res : CacheResponse) : CacheResponse {
-                res;
-              }
-            ),
-          );
-          return response;
-        },
-      );
-    };
-
-    public func delete(path : Text, handler : (request : Http.HttpRequest, response : Response) -> CacheResponse) {
-      registerDeleteRequest(
-        path,
-        func(request : Http.HttpRequest) : CacheResponse {
-          var response = handler(
-            request,
-            Response(
-              func(res : CacheResponse) : CacheResponse {
-                res;
-              }
-            ),
-          );
-          return response;
-        },
-      );
-    };
-
   };
 
   public type CacheResponseFunc = (response : CacheResponse) -> CacheResponse;

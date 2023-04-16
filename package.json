@@ -4,12 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "mo-dev --deploy -y"
   },
   "keywords": [],
   "author": "Kyle Peacock",
   "license": "ISC",
   "devDependencies": {
     "ic-mops": "^0.9.1"
+  },
+  "dependencies": {
+    "mo-dev": "^0.5.5"
   }
 }

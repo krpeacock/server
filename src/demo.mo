@@ -20,7 +20,7 @@ actor {
   var server = Server.Server(cache);
 
   server.get(
-    "*",
+    "/",
     func(req, res) : CacheResponse {
       res.send({
         status_code = 200;

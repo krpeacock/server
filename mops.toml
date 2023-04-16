@@ -6,3 +6,6 @@ repository = ""
 
 [dependencies]
 certified-cache = "0.1.0"
+json = "https://github.com/aviate-labs/json.mo#master"
+array = "https://github.com/aviate-labs/array.mo#master"
+encoding = "https://github.com/aviate-labs/encoding.mo#master"
