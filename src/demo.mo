@@ -2,19 +2,21 @@ import CertifiedCache "mo:certified-cache";
 import Text "mo:base/Text";
 import Server "lib";
 import Http "mo:certified-cache/Http";
+import Int "mo:base/Int";
+import Time "mo:base/Time";
 
 actor {
   type CacheResponse = Server.CacheResponse;
 
-  stable var entries : [(Text, (CacheResponse, Nat))] = [];
+  stable var entries : [(Text, (Blob, Nat))] = [];
   let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
-  var cache = CertifiedCache.fromEntries<Text, CacheResponse>(
+  var cache = CertifiedCache.fromEntries<Text, Blob>(
     entries,
     Text.equal,
     Text.hash,
     Text.encodeUtf8,
-    func(b : CacheResponse) : Blob { b.body },
-    two_days_in_nanos,
+    func(b : Blob) : Blob { b },
+    two_days_in_nanos + Int.abs(Time.now()),
   );
 
   var server = Server.Server(cache);
