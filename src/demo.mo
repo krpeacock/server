@@ -28,7 +28,7 @@ actor {
         status_code = 200;
         headers = [("Content-Type", "text/html")];
         body = Text.encodeUtf8(
-          "<!DOCTYPE html>" # "<html lang=\"en\">" # "<head>" # "<meta charset=\"UTF-8\">" # "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">" # "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" # "<title>Motoko Server SSR</title>" # "<meta name=\"description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" # "</head>" # "<body>" # "<h1>Hello, world!</h1>" # "</body>" # "</html>"
+          "<!DOCTYPE html>" # "<html lang=\"en\">" # "<head>" # "<meta charset=\"UTF-8\">" # "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">" # "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" # "<title>Motoko Server SSR</title>" # "<meta name=\"description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" # "<meta property=\"og:title\" content=\"Motoko Server SSR\">" # "<meta property=\"og:description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" # "<meta property=\"og:type\" content=\"website\">" # "</head>" # "<body>" # "<h1>Hello, world!</h1>" # "</body>" # "</html>"
         );
         streaming_strategy = null;
       });
