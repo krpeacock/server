@@ -1,5 +1,6 @@
 import CertifiedCache "mo:certified-cache";
 import Text "mo:base/Text";
+import Debug "mo:base/Debug";
 import Server "lib";
 import HashMap "mo:StableHashMap/FunctionalStableHashMap";
 import Http "mo:certified-cache/Http";
@@ -11,15 +12,17 @@ import Blob "mo:base/Blob";
 
 actor {
   type CacheResponse = Server.CacheResponse;
+  type HttpRequest = Http.HttpRequest;
+  type HttpResponse = Http.HttpResponse;
 
-  stable var entries : [(Text, (Blob, Nat))] = [];
+  stable var entries : [(HttpRequest, (HttpResponse, Nat))] = [];
   let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
-  var cache = CertifiedCache.fromEntries<Text, Blob>(
+  var cache = CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
     entries,
-    Text.equal,
-    Text.hash,
-    Text.encodeUtf8,
-    func(b : Blob) : Blob { b },
+    Server.compareRequests,
+    Server.hashRequest,
+    Server.encodeRequest,
+    Server.yieldResponse,
     two_days_in_nanos + Int.abs(Time.now()),
   );
 
@@ -45,7 +48,7 @@ actor {
   server.get(
     "/profile.jpeg",
     func(req, res) : CacheResponse {
-      let file = Trie.get(files, key("/profile.jpeg"), Text.equal);
+      let file = Trie.get(files, key("profile.jpeg"), Text.equal);
       switch file {
         case null {
           return res.send({
@@ -97,12 +100,12 @@ actor {
   };
 
   public func invalidate_cache() {
-    cache := CertifiedCache.fromEntries<Text, Blob>(
+    cache := CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
       [],
-      Text.equal,
-      Text.hash,
-      Text.encodeUtf8,
-      func(b : Blob) : Blob { b },
+      Server.compareRequests,
+      Server.hashRequest,
+      Server.encodeRequest,
+      Server.yieldResponse,
       two_days_in_nanos + Int.abs(Time.now()),
     );
   };

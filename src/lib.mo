@@ -5,6 +5,7 @@ import Text "mo:base/Text";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Debug "mo:base/Debug";
+import Hash "mo:base/Hash";
 import HttpParser "http-parser";
 
 module {
@@ -18,7 +19,7 @@ module {
     streaming_strategy : ?Http.StreamingStrategy;
   };
 
-  public class Server(cache : CertifiedCache.CertifiedCache<Text, Blob>) {
+  public class Server(cache : CertifiedCache.CertifiedCache<Http.HttpRequest, Http.HttpResponse>) {
     var getRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
     var postRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
@@ -49,14 +50,13 @@ module {
 
     public func http_request(request : Http.HttpRequest) : Http.HttpResponse {
       let req = HttpParser.parse(request);
-      var cachedBody = cache.get(request.url);
-      switch cachedBody {
-        case (?body) {
-          let response = process_request(req);
+      var cachedResponse = cache.get(request);
+      switch cachedResponse {
+        case (?response) {
           {
             status_code = response.status_code;
-            headers = Array.append(response.headers, [cache.certificationHeader(request.url)]);
-            body = body;
+            headers = Array.append(response.headers, [cache.certificationHeader(request)]);
+            body = response.body;
             streaming_strategy = response.streaming_strategy;
             upgrade = null;
           };
@@ -77,19 +77,20 @@ module {
     public func http_request_update(request : Http.HttpRequest) : Http.HttpResponse {
       // Application logic to process the request
       let req = HttpParser.parse(request);
-      let response = process_request(req);
+      let cacheResponse = process_request(req);
+      let response = {
+        status_code = cacheResponse.status_code;
+        headers = cacheResponse.headers;
+        body = cacheResponse.body;
+        streaming_strategy = cacheResponse.streaming_strategy;
+        upgrade = null;
+      };
 
       // expiry can be null to use the default expiry
       if (response.status_code == 200) {
-        cache.put(request.url, response.body, null);
+        cache.put(request, response, null);
       };
-      return {
-        status_code = response.status_code;
-        headers = response.headers;
-        body = response.body;
-        streaming_strategy = response.streaming_strategy;
-        upgrade = null;
-      };
+      return response;
     };
 
     public func process_request(req : HttpParser.ParsedHttpRequest) : CacheResponse {
@@ -167,4 +168,21 @@ module {
       });
     };
   };
+
+  type HttpRequest = Http.HttpRequest;
+  type HttpResponse = Http.HttpResponse;
+  // Compare two requests
+  public func compareRequests (req1 : HttpRequest, req2 : HttpRequest) : Bool {
+    req1.url == req2.url;
+  };
+  // Hash a request
+  public func hashRequest (req : HttpRequest) : Hash.Hash {
+    Text.hash(req.url);
+  };
+  // Encode a request
+  public func encodeRequest (req : HttpRequest) : Blob {
+    Text.encodeUtf8(req.url);
+  };
+  // Yield a response
+  public func yieldResponse (b : HttpResponse) : Blob { b.body };
 };
