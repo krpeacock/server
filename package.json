@@ -11,9 +11,13 @@
   "author": "Kyle Peacock",
   "license": "ISC",
   "devDependencies": {
-    "ic-mops": "^0.9.1"
+    "fetch": "^1.1.0",
+    "ic-mops": "^0.9.1",
+    "isomorphic": "^0.0.11",
+    "isomorphic-fetch": "^3.0.0"
   },
   "dependencies": {
+    "ic0": "^0.2.7",
     "mo-dev": "^0.5.5"
   }
 }

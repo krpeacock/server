@@ -80,7 +80,9 @@ module {
       let response = process_request(req);
 
       // expiry can be null to use the default expiry
-      cache.put(request.url, response.body, null);
+      if (response.status_code == 200) {
+        cache.put(request.url, response.body, null);
+      };
       return {
         status_code = response.status_code;
         headers = response.headers;
