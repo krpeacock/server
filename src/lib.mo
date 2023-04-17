@@ -12,11 +12,18 @@ module {
   type HttpFunction = (HttpParser.ParsedHttpRequest) -> CacheResponse;
   type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
 
+  type CacheStrategy = {
+    #default;
+    #noCache;
+    #expireAfter:  {nanoseconds : Nat};
+  };
+
   public type CacheResponse = {
     status_code : Nat16;
     headers : [Http.HeaderField];
     body : Blob;
     streaming_strategy : ?Http.StreamingStrategy;
+    cache_strategy : CacheStrategy;
   };
 
   public class Server(cache : CertifiedCache.CertifiedCache<Http.HttpRequest, Http.HttpResponse>) {
@@ -87,8 +94,18 @@ module {
       };
 
       // expiry can be null to use the default expiry
-      if (response.status_code == 200) {
-        cache.put(request, response, null);
+      if (response.status_code == 200 ) {
+        switch (cacheResponse.cache_strategy) {
+          case (#expireAfter expiry) {
+            cache.put(request, response, ?expiry.nanoseconds);
+          };
+          case (#noCache) {
+            // do not cache
+          };
+          case (#default) {
+            cache.put(request, response, null);
+          };
+        };
       };
       return response;
     };
@@ -111,6 +128,7 @@ module {
                 headers = [];
                 body = Blob.fromArray([]);
                 streaming_strategy = null;
+                cache_strategy = #noCache;
               };
             };
 
@@ -122,6 +140,7 @@ module {
             headers = [];
             body = Blob.fromArray([]);
             streaming_strategy = null;
+            cache_strategy = #noCache;
           };
         };
       };
@@ -157,6 +176,7 @@ module {
       response : {
         status_code : Nat16;
         body : Text;
+        cache_strategy : CacheStrategy;
       }
     ) : CacheResponse {
 
@@ -165,6 +185,7 @@ module {
         headers = [("content-type", "application/json")];
         body = Text.encodeUtf8(response.body);
         streaming_strategy = null;
+        cache_strategy = response.cache_strategy;
       });
     };
   };
