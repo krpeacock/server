@@ -1,8 +1,8 @@
 [package]
 name = "server"
 version = "0.1.0"
-description = ""
-repository = ""
+description = "An express-like server for Motoko"
+repository = "https://github.com/krpeacock/server"
 
 [dependencies]
 certified-cache = "0.2.0"

@@ -2,7 +2,7 @@
     "canisters": {
         "demo": {
             "type": "motoko",
-            "main": "src/demo.mo"
+            "main": "examples/demo/demo.mo"
         }
     },
     "defaults": {

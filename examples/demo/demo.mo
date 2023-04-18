@@ -1,3 +1,4 @@
+import Server "../../src/lib";
 import Blob "mo:base/Blob";
 import CertifiedCache "mo:certified-cache";
 import Debug "mo:base/Debug";
@@ -9,7 +10,6 @@ import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import serdeJson "mo:serde/JSON";
 import Option "mo:base-0.7.3/Option";
-import Server "lib";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
 import Trie "mo:base/Trie";
@@ -17,23 +17,13 @@ import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 
 actor {
-  type CacheResponse = Server.CacheResponse;
+  type Response = Server.Response;
   type HttpRequest = Http.HttpRequest;
   type HttpResponse = Http.HttpResponse;
 
-  let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
+  stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
 
-  stable var entries : [(HttpRequest, (HttpResponse, Nat))] = [];
-  var cache = CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
-    entries,
-    Server.compareRequests,
-    Server.hashRequest,
-    Server.encodeRequest,
-    Server.yieldResponse,
-    two_days_in_nanos + Int.abs(Time.now()),
-  );
-
-  var server = Server.Server(cache);
+  var server = Server.Server(cacheStorage);
 
   stable var files = Trie.empty<Text, Blob>();
   func key(x : Text) : Trie.Key<Text> { { key = x; hash = Text.hash(x) } };
@@ -61,7 +51,7 @@ actor {
 
   server.get(
     "/",
-    func(req, res) : CacheResponse {
+    func(req, res) : Response {
       res.send({
         status_code = 200;
         headers = [("Content-Type", "text/html")];
@@ -76,7 +66,7 @@ actor {
 
   server.get(
     "/profile.jpeg",
-    func(req, res) : CacheResponse {
+    func(req, res) : Response {
       let file = Trie.get(files, key("profile.jpeg"), Text.equal);
       switch file {
         case null {
@@ -104,7 +94,7 @@ actor {
   // Cached endpoint
   server.get(
     "/hi",
-    func(req, res) : CacheResponse {
+    func(req, res) : Response {
       Debug.print("hi");
       res.json({
         status_code = 200;
@@ -117,7 +107,7 @@ actor {
   // Dynamic endpoint
   server.get(
     "/queryParam",
-    func(req, res) : CacheResponse {
+    func(req, res) : Response {
       let obj = req.url.queryObj;
       let keys = Iter.fromArray(obj.keys);
 
@@ -155,7 +145,7 @@ actor {
 
   server.get(
     "/cats",
-    func(req, res) : CacheResponse {
+    func(req, res) : Response {
       let catEntries = cats.entries();
 
       var catJson = "{ ";
@@ -202,7 +192,7 @@ actor {
 
   server.post(
     "/cats",
-    func(req, res) : CacheResponse {
+    func(req, res) : Response {
       let body = req.body;
       switch body {
         case null {
@@ -252,6 +242,10 @@ actor {
     server.http_request_update(req);
   };
 
+  public func invalidate_cache(): async () {
+    server.empty_cache();
+  };
+
   public func store(path : Text, content : Blob) {
     let (newFiles, existing) = Trie.put(
       files, // Target trie
@@ -263,23 +257,12 @@ actor {
     files := newFiles;
   };
 
-  public func invalidate_cache() {
-    cache := CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
-      [],
-      Server.compareRequests,
-      Server.hashRequest,
-      Server.encodeRequest,
-      Server.yieldResponse,
-      two_days_in_nanos + Int.abs(Time.now()),
-    );
-  };
-
   system func preupgrade() {
-    entries := cache.entries();
+    cacheStorage := server.cache.entries();
   };
 
   system func postupgrade() {
-    let _ = cache.pruneAll();
+    let _ = server.cache.pruneAll();
   };
 
 };

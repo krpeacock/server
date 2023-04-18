@@ -7,9 +7,11 @@ import Blob "mo:base/Blob";
 import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
 import HttpParser "http-parser";
+import Int "mo:base/Int";
+import Time "mo:base/Time";
 
 module {
-  type HttpFunction = (HttpParser.ParsedHttpRequest) -> CacheResponse;
+  type HttpFunction = (HttpParser.ParsedHttpRequest) -> Response;
   type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
 
   type CacheStrategy = {
@@ -25,7 +27,7 @@ module {
     streaming_strategy : ?Http.StreamingStrategy;
   };
 
-  public type CacheResponse = {
+  public type Response = {
     status_code : Nat16;
     headers : [Http.HeaderField];
     body : Blob;
@@ -33,7 +35,21 @@ module {
     cache_strategy : CacheStrategy;
   };
 
-  public class Server(cache : CertifiedCache.CertifiedCache<Http.HttpRequest, Http.HttpResponse>) {
+  public type Request = HttpParser.ParsedHttpRequest;
+
+  public class Server(entries : [(HttpRequest, (HttpResponse, Nat))]) {
+
+    let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
+
+    public var cache = CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
+      entries,
+      compareRequests,
+      hashRequest,
+      encodeRequest,
+      yieldResponse,
+      two_days_in_nanos + Int.abs(Time.now()),
+    );
+
     var getRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
     var postRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
@@ -97,7 +113,7 @@ module {
       return response;
     };
 
-    public func process_request(req : HttpParser.ParsedHttpRequest) : CacheResponse {
+    public func process_request(req : HttpParser.ParsedHttpRequest) : Response {
       Debug.print("Processing request: " # debug_show req.url.original);
       Debug.print("Method: " # req.method);
       Debug.print("Path: " # req.url.path.original);
@@ -216,19 +232,25 @@ module {
     // Register a request handler that will be cached
     // GET requests are cached by default
     // POST, PUT, DELETE requests are not cached
-    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : Response) -> CacheResponse) {
+    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
       if (method == "GET") {
         registerRequest(
           method,
           path,
-          func(request : HttpParser.ParsedHttpRequest) : CacheResponse {
+          func(request : Request) : Response {
             var response = handler(
               request,
-              Response(
-                func(res : CacheResponse) : CacheResponse {
-                  res;
+              ResponseClass(
+                func(res : BasicResponse) : Response {
+                  return {
+                    status_code = res.status_code;
+                    headers = res.headers;
+                    body = res.body;
+                    streaming_strategy = res.streaming_strategy;
+                    cache_strategy = #default;
+                  };
                 },
-                null,
+                ? #default,
               ),
             );
             return response;
@@ -238,11 +260,11 @@ module {
         registerRequest(
           method,
           path,
-          func(request : HttpParser.ParsedHttpRequest) : CacheResponse {
+          func(request : Request) : Response {
             var response = handler(
               request,
-              Response(
-                func(res : BasicResponse) : CacheResponse {
+              ResponseClass(
+                func(res : BasicResponse) : Response {
                   return {
                     status_code = res.status_code;
                     headers = res.headers;
@@ -260,27 +282,39 @@ module {
       };
     };
 
-    public func get(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : Response) -> CacheResponse) {
+    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
       registerRequestWithHandler("GET", path, handler);
     };
 
-    public func post(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : Response) -> CacheResponse) {
+    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
       registerRequestWithHandler("POST", path, handler);
     };
 
-    public func put(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : Response) -> CacheResponse) {
+    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
       registerRequestWithHandler("PUT", path, handler);
     };
 
-    public func delete(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : Response) -> CacheResponse) {
+    public func delete(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : ResponseClass) -> Response) {
       registerRequestWithHandler("DELETE", path, handler);
+    };
+
+    public func empty_cache() {
+      cache := CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
+        [],
+        compareRequests,
+        hashRequest,
+        encodeRequest,
+        yieldResponse,
+        two_days_in_nanos + Int.abs(Time.now()),
+      );
     };
   };
 
-  public type CacheResponseFunc = (response : CacheResponse) -> CacheResponse;
-  public class Response(cb : (CacheResponse) -> CacheResponse, overrideCacheStrategy : ?CacheStrategy) {
+  public type ResponseFunc = (response : Response) -> Response;
+  
+  public class ResponseClass(cb : (Response) -> Response, overrideCacheStrategy : ?CacheStrategy) {
 
-    public func send(response : CacheResponse) : CacheResponse {
+    public func send(response : Response) : Response {
       cb(response);
     };
 
@@ -290,7 +324,7 @@ module {
         body : Text;
         cache_strategy : CacheStrategy;
       }
-    ) : CacheResponse {
+    ) : Response {
       let cache_strategy = switch (overrideCacheStrategy) {
         case (?cacheStrategy) {
           cacheStrategy;
