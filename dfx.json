@@ -1,13 +1,13 @@
 {
-    "canisters": {
-        "demo": {
-            "type": "motoko",
-            "main": "examples/demo/demo.mo"
-        }
-    },
-    "defaults": {
-        "build": {
-          "packtool": "npx mops sources"
-        }
-      }
+  "canisters": {
+    "demo": {
+      "type": "motoko",
+      "main": "examples/demo/demo.mo"
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "npx mops sources"
+    }
+  }
 }
