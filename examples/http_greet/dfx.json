@@ -1,0 +1,16 @@
+{
+  "canisters": {
+    "http_greet": {
+      "main": "src/http_greet/main.mo",
+      "type": "motoko"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": "mops sources"
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
