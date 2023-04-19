@@ -22,9 +22,11 @@ jobs:
       - name: Install dfx
         run: echo y | sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
       
-      - name: Deploy test canister
-        run: dfx deploy --background --clean test
+      - name: Start dfx
+        run: dfx start --background --clean
 
+      - name: Deploy test canister
+        run: dfx deploy test
       - name: Run e2e tests
         run: npm run test:e2e
 
