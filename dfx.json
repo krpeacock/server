@@ -7,7 +7,7 @@
   },
   "defaults": {
     "build": {
-      "packtool": "npx ic-mops sources | tr '\n' ' '"
+      "packtool": "npm run --silent sources"
     }
   }
 }
