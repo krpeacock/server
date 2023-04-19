@@ -6,7 +6,8 @@
   "scripts": {
     "test": "mo-test",
     "test:watch": "mo-dev --test",
-    "dev": "mo-dev --deploy -y"
+    "dev": "mo-dev --deploy -y",
+    "sources": "mops sources"
   },
   "keywords": [],
   "author": "Kyle Peacock",
