@@ -6,6 +6,7 @@
   "scripts": {
     "test": "mo-test",
     "test:watch": "mo-dev --test",
+    "test:e2e": "vitest",
     "dev": "mo-dev --deploy -y",
     "sources": "mops sources"
   },
@@ -13,9 +14,15 @@
   "author": "Kyle Peacock",
   "license": "ISC",
   "devDependencies": {
+    "@dfinity/agent": "^0.15.5",
+    "@dfinity/candid": "^0.15.5",
+    "@dfinity/identity": "^0.15.5",
+    "@dfinity/principal": "^0.15.5",
+    "express": "^4.18.2",
     "ic-mops": "^0.10.0",
     "isomorphic-fetch": "^3.0.0",
-    "mo-dev": "^0.6.3"
+    "mo-dev": "^0.6.3",
+    "vitest": "^0.30.1"
   },
   "dependencies": {
     "ic0": "^0.2.7"
