@@ -27,17 +27,21 @@ Here is an example of how to set up a server with a cache:
 
 ```lua
 import CertifiedCache "mo:certified-cache";
+import Http "mo:certified-cache/Http";
 import Server "mo:server";
 
 actor {
+    type Request = Server.Request;
+    type Response = Server.Response;
+    type ResponseClass = Server.ResponseClass;
     stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
 
     var server = Server.Server(cacheStorage);
 
 
-    /* 
+    /*
      * http request hooks
-     */ 
+     */
     public query func http_request(req : Http.HttpRequest) : async Http.HttpResponse {
         server.http_request(req);
     };
@@ -46,9 +50,9 @@ actor {
     };
 
 
-    /* 
+    /*
      * upgrade hooks
-     */ 
+     */
     system func preupgrade() {
         cacheStorage := server.cache.entries();
     };
@@ -132,8 +136,8 @@ For requests that are not cached, the server will upgrade the request to an upda
 ## Examples
 
 See the `examples` directory for examples of how to use this library. These examples are also available on the Internet Computer as canisters:
-- Demo: https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/
 
+- Demo: https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/
 
 ## Roadmap
 
@@ -152,8 +156,6 @@ See the `examples` directory for examples of how to use this library. These exam
 - [ ] `res.sendStatus`
 - [ ] Certification v2 support (fast dynamic queries)
 
-
-
 ## Credits
 
-This project currently copies the `http-parser` library into its source tree. This is because the `http-parser` library is not currently installable as a package on `mops`. Source code is available at https://github.com/NatLabs/http-parser.mo 
+This project currently copies the `http-parser` library into its source tree. This is because the `http-parser` library is not currently installable as a package on `mops`. Source code is available at https://github.com/NatLabs/http-parser.mo

@@ -29,24 +29,7 @@ actor {
   func key(x : Text) : Trie.Key<Text> { { key = x; hash = Text.hash(x) } };
 
   let template = (
-    "<!DOCTYPE html>" #
-    "<html lang=\"en\">" #
-    "<head>" #
-    "<meta charset=\"UTF-8\">" #
-    "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">" #
-    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" #
-    "<title>Motoko Server SSR</title>" #
-    "<meta name=\"description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" #
-    "<meta property=\"og:title\" content=\"Motoko Server SSR\">" #
-    "<meta property=\"og:description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" #
-    "<meta property=\"og:type\" content=\"website\">" #
-    "<meta property=\"og:image\" content=\"https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/profile.jpeg\">" #
-    "</head>" #
-    "<body>" #
-    "<h1>Hello, world!</h1>" #
-    "<div><img src=\"/profile.jpeg\"/></div>" #
-    "</body>" #
-    "</html>"
+    "<!DOCTYPE html>" # "<html lang=\"en\">" # "<head>" # "<meta charset=\"UTF-8\">" # "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">" # "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" # "<title>Motoko Server SSR</title>" # "<meta name=\"description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" # "<meta property=\"og:title\" content=\"Motoko Server SSR\">" # "<meta property=\"og:description\" content=\"This is the first live website from Kyle Peacock's server package, hosted and certified on the IC\">" # "<meta property=\"og:type\" content=\"website\">" # "<meta property=\"og:image\" content=\"https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/profile.jpeg\">" # "</head>" # "<body>" # "<h1>Hello, world!</h1>" # "<div><img src=\"/profile.jpeg\"/></div>" # "</body>" # "</html>"
   );
 
   server.get(
@@ -64,7 +47,7 @@ actor {
     },
   );
 
-  server.get(
+  server.post(
     "/profile.jpeg",
     func(req, res) : Response {
       let file = Trie.get(files, key("profile.jpeg"), Text.equal);
@@ -177,7 +160,7 @@ actor {
   */
   func processCat(data : Text) : ?Cat {
     let blob = serdeJson.fromText(data);
-    from_candid(blob);
+    from_candid (blob);
   };
 
   public func getCats() : async [Cat] {
@@ -242,7 +225,7 @@ actor {
     server.http_request_update(req);
   };
 
-  public func invalidate_cache(): async () {
+  public func invalidate_cache() : async () {
     server.empty_cache();
   };
 
