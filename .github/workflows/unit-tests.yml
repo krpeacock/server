@@ -10,8 +10,6 @@ on:
       - reopened
       - edited
       - synchronize
-    branches:
-      - main
 
 jobs:
   unit-tests:
