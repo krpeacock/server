@@ -8,7 +8,9 @@
     "test:watch": "mo-dev --test",
     "test:e2e": "vitest",
     "dev": "mo-dev --deploy -y",
-    "sources": "mops sources"
+    "sources": "mops sources",
+    "prettier:check": "npx -p prettier -p pretty-quick pretty-quick --check",
+    "prettier:format": "npx -p prettier -p pretty-quick pretty-quick"
   },
   "keywords": [],
   "author": "Kyle Peacock",
@@ -22,6 +24,8 @@
     "ic-mops": "^0.10.0",
     "isomorphic-fetch": "^3.0.0",
     "mo-dev": "^0.6.3",
+    "prettier": "^2.8.7",
+    "pretty-quick": "^3.1.3",
     "vitest": "^0.30.1"
   },
   "dependencies": {

@@ -6,9 +6,9 @@ repository = "https://github.com/krpeacock/server"
 
 [dependencies]
 certified-cache = "0.2.0"
-json = "https://github.com/aviate-labs/json.mo#master"
-array = "https://github.com/aviate-labs/array.mo#master"
-encoding = "https://github.com/aviate-labs/encoding.mo#master"
+json = "https://github.com/aviate-labs/json.mo#main"
+array = "https://github.com/aviate-labs/array.mo#main"
+encoding = "https://github.com/aviate-labs/encoding.mo#main"
 motoko-sha = "https://github.com/enzoh/motoko-sha#master"
 serde = "0.2.0"
 test = "1.0.1"
