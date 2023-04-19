@@ -37,6 +37,9 @@ module {
 
   public type Request = HttpParser.ParsedHttpRequest;
 
+  public type HttpRequest = Http.HttpRequest;
+  public type HttpResponse = Http.HttpResponse;
+
   public class Server(entries : [(HttpRequest, (HttpResponse, Nat))]) {
 
     let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
@@ -343,8 +346,6 @@ module {
     };
   };
 
-  type HttpRequest = Http.HttpRequest;
-  type HttpResponse = Http.HttpResponse;
   // Compare two requests
   public func compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool {
     req1.url == req2.url;
