@@ -5,7 +5,6 @@ import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
 import HM "mo:base/HashMap";
 import HashMap "mo:StableHashMap/FunctionalStableHashMap";
-import Http "mo:certified-cache/Http";
 import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import serdeJson "mo:serde/JSON";
@@ -18,8 +17,8 @@ import Buffer "mo:base/Buffer";
 
 actor {
   type Response = Server.Response;
-  type HttpRequest = Http.HttpRequest;
-  type HttpResponse = Http.HttpResponse;
+  type HttpRequest = Server.HttpRequest;
+  type HttpResponse = Server.HttpResponse;
 
   stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
 
@@ -218,10 +217,10 @@ actor {
   );
 
   // Bind the server to the HTTP interface
-  public query func http_request(req : Http.HttpRequest) : async Http.HttpResponse {
+  public query func http_request(req : HttpRequest) : async HttpResponse {
     server.http_request(req);
   };
-  public func http_request_update(req : Http.HttpRequest) : async Http.HttpResponse {
+  public func http_request_update(req : HttpRequest) : async HttpResponse {
     server.http_request_update(req);
   };
 

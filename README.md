@@ -26,14 +26,15 @@ Finally, you should add the `preupgrade` and `postupgrade` system functions to y
 Here is an example of how to set up a server with a cache:
 
 ```lua
-import CertifiedCache "mo:certified-cache";
-import Http "mo:certified-cache/Http";
 import Server "mo:server";
 
 actor {
     type Request = Server.Request;
     type Response = Server.Response;
+    type HttpRequest = Server.HttpRequest;
+    type HttpResponse = Server.HttpResponse;
     type ResponseClass = Server.ResponseClass;
+
     stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
 
     var server = Server.Server(cacheStorage);
@@ -42,10 +43,10 @@ actor {
     /*
      * http request hooks
      */
-    public query func http_request(req : Http.HttpRequest) : async Http.HttpResponse {
+    public query func http_request(req : HttpRequest) : async HttpResponse {
         server.http_request(req);
     };
-    public func http_request_update(req : Http.HttpRequest) : async Http.HttpResponse {
+    public func http_request_update(req : HttpRequest) : async HttpResponse {
         server.http_request_update(req);
     };
 

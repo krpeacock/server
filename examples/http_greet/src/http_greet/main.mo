@@ -1,14 +1,15 @@
-import Server "mo:server";
-import Http "mo:certified-cache/Http";
+import Server "../../../../src/lib";
 import Text "mo:base/Text";
 import Trie "mo:base/Trie";
 
 actor {
   type Request = Server.Request;
   type Response = Server.Response;
+  type HttpRequest = Server.HttpRequest;
+  type HttpResponse = Server.HttpResponse;
   type ResponseClass = Server.ResponseClass;
 
-  stable var cacheStorage : [(Http.HttpRequest, (Http.HttpResponse, Nat))] = [];
+  stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
 
   var server = Server.Server(cacheStorage);
 
@@ -217,10 +218,10 @@ actor {
   /*
      * http request hooks
      */
-  public query func http_request(req : Http.HttpRequest) : async Http.HttpResponse {
+  public query func http_request(req : HttpRequest) : async HttpResponse {
     server.http_request(req);
   };
-  public func http_request_update(req : Http.HttpRequest) : async Http.HttpResponse {
+  public func http_request_update(req : HttpRequest) : async HttpResponse {
     server.http_request_update(req);
   };
 
