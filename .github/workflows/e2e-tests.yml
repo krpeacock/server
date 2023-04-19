@@ -5,14 +5,33 @@ on:
     branches:
       - main
   pull_request:
+    types:
+      - opened
+      - reopened
+      - edited
+      - synchronize
     branches:
       - main
 
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04]
+        ghc: ['8.8.4']
+        spec:
+          - '0.16.1'
+        node:
+          - 16
 
     steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -27,8 +46,19 @@ jobs:
 
       - name: Deploy test canister
         run: dfx deploy test
+
       - name: Run e2e tests
         run: npm run test:e2e
 
       - name: Clean Up
         run: killall dfx replica
+
+  aggregate:
+    name: e2e:required
+    if: ${{ always() }}
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: check e2e test result
+        if: ${{ needs.test.result != 'success' }}
+        run: exit 1
