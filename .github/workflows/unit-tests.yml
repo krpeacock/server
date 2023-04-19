@@ -12,7 +12,7 @@ on:
       - synchronize
 
 jobs:
-  unit-tests:
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,9 +48,9 @@ jobs:
   aggregate:
     name: unit:required
     if: ${{ always() }}
-    needs: [unit-tests]
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: check unit test result
-        if: ${{ needs.unit-tests.result != 'success' }}
+        if: ${{ needs.test.result != 'success' }}
         run: exit 1

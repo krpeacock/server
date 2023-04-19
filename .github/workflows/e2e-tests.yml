@@ -12,7 +12,7 @@ on:
       - synchronize
 
 jobs:
-  e2e-tests:
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,9 +54,9 @@ jobs:
   aggregate:
     name: e2e:required
     if: ${{ always() }}
-    needs: [e2e-tests]
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: check e2e test result
-        if: ${{ needs.e2e-tests.result != 'success' }}
+        if: ${{ needs.test.result != 'success' }}
         run: exit 1
