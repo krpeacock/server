@@ -54,7 +54,7 @@ jobs:
   aggregate:
     name: e2e:required
     if: ${{ always() }}
-    needs: [test]
+    needs: [e2e-tests]
     runs-on: ubuntu-latest
     steps:
       - name: check e2e test result

@@ -42,7 +42,7 @@ jobs:
   aggregate:
     name: unit:required
     if: ${{ always() }}
-    needs: [test]
+    needs: [unit-tests]
     runs-on: ubuntu-latest
     steps:
       - name: check unit test result
