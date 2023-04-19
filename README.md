@@ -87,9 +87,7 @@ You can also use `res.json` to send a JSON response:
 server.get("/api", func (req, res) {
     res.json({
         status_code = 200;
-        headers = [("Content-Type", "application/json")];
         body = "{ \"hello\": \"world\" }";
-        streaming_strategy = null;
         cache_strategy = #default;
     });
 });
