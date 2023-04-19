@@ -39,6 +39,9 @@ jobs:
       - name: Install dfx
         run: echo y | sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
 
+      - name: Start dfx
+        run: dfx start --background --clean
+
       - name: Run unit tests
         run: npm run test
 
@@ -49,5 +52,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check unit test result
-        if: ${{ needs.test.result != 'success' }}
+        if: ${{ needs.unit-tests.result != 'success' }}
         run: exit 1

@@ -58,5 +58,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check e2e test result
-        if: ${{ needs.test.result != 'success' }}
+        if: ${{ needs.e2e-tests.result != 'success' }}
         run: exit 1
