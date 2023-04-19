@@ -6,8 +6,7 @@
   "scripts": {
     "test": "mo-test",
     "test:watch": "mo-dev --test",
-    "dev": "mo-dev --deploy -y",
-    "sources": "mops sources | tr '\n' ' '"
+    "dev": "mo-dev --deploy -y"
   },
   "keywords": [],
   "author": "Kyle Peacock",
@@ -17,7 +16,7 @@
     "ic-mops": "^0.10.0",
     "isomorphic": "^0.0.11",
     "isomorphic-fetch": "^3.0.0",
-    "mo-dev": "^0.6.2"
+    "mo-dev": "^0.6.3"
   },
   "dependencies": {
     "ic0": "^0.2.7"
