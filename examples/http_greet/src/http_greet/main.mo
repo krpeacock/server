@@ -1,20 +1,23 @@
 import Server "../../../../src/lib";
+import Assets "mo:assets";
+import T "mo:assets/Types";
 import Text "mo:base/Text";
+import Principal "mo:base/Principal";
 import Trie "mo:base/Trie";
 
-actor {
+shared ({ caller = creator }) actor class () {
   type Request = Server.Request;
   type Response = Server.Response;
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
   type ResponseClass = Server.ResponseClass;
 
-  stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
+  stable var serializedEntries : Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server(cacheStorage);
+  var server = Server.Server({serializedEntries});
+  
+  let assets = server.assets;
 
-  stable var files = Trie.empty<Text, Blob>();
-  func key(x : Text) : Trie.Key<Text> { { key = x; hash = Text.hash(x) } };
 
   server.post(
     "/greet",
@@ -38,186 +41,165 @@ actor {
     },
   );
 
-  server.get(
-    "/",
-    func(req, res) : Response {
-      let file = Trie.get(files, key("index.html"), Text.equal);
-      switch file {
-        case null {
-          return res.send({
-            status_code = 404;
-            headers = [];
-            body = Text.encodeUtf8("File not found");
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          });
-        };
-        case (?blob) {
-          return res.send({
-            status_code = 200;
-            headers = [("Content-Type", "text/html")];
-            body = blob;
-            streaming_strategy = null;
-            cache_strategy = #default;
-          });
-        };
-      };
-    },
-  );
+  server.get("/foo", func(req : Request, res : ResponseClass) : Response {
+    res.send({
+      status_code = 200;
+      headers = [("Content-Type", "text/html")];
+      body = Text.encodeUtf8("<html><body><h1>Foo</h1></body></html>");
+      streaming_strategy = null;
+      cache_strategy = #default;
+    });
+  });
 
-  server.get(
-    "/index.js",
-    func(req, res) : Response {
-      let file = Trie.get(files, key("index.js"), Text.equal);
-      switch file {
-        case null {
-          return res.send({
-            status_code = 404;
-            headers = [];
-            body = Text.encodeUtf8("File not found");
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          });
-        };
-        case (?blob) {
-          return res.send({
-            status_code = 200;
-            headers = [("Content-Type", "text/javascript")];
-            body = blob;
-            streaming_strategy = null;
-            cache_strategy = #default;
-          });
-        };
-      };
-    },
-  );
-
-  server.get(
-    "/favicon.ico",
-    func(req, res) : Response {
-      let file = Trie.get(files, key("favicon.ico"), Text.equal);
-      switch file {
-        case null {
-          return res.send({
-            status_code = 404;
-            headers = [];
-            body = Text.encodeUtf8("File not found");
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          });
-        };
-        case (?blob) {
-          return res.send({
-            status_code = 200;
-            headers = [("Content-Type", "image/x-icon")];
-            body = blob;
-            streaming_strategy = null;
-            cache_strategy = #default;
-          });
-        };
-      };
-    },
-  );
-
-  server.get(
-    "/main.css",
-    func(req, res) : Response {
-      let file = Trie.get(files, key("main.css"), Text.equal);
-      switch file {
-        case null {
-          return res.send({
-            status_code = 404;
-            headers = [];
-            body = Text.encodeUtf8("File not found");
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          });
-        };
-        case (?blob) {
-          return res.send({
-            status_code = 200;
-            headers = [("Content-Type", "text/css")];
-            body = blob;
-            streaming_strategy = null;
-            cache_strategy = #default;
-          });
-        };
-      };
-    },
-  );
-
-  server.get(
-    "/logo2.svg",
-    func(req, res) : Response {
-      let file = Trie.get(files, key("logo2.svg"), Text.equal);
-      switch file {
-        case null {
-          return res.send({
-            status_code = 404;
-            headers = [];
-            body = Text.encodeUtf8("File not found");
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          });
-        };
-        case (?blob) {
-          return res.send({
-            status_code = 200;
-            headers = [("Content-Type", "image/svg+xml")];
-            body = blob;
-            streaming_strategy = null;
-            cache_strategy = #default;
-          });
-        };
-      };
-    },
-  );
-
-  server.get(
-    "/profile.jpeg",
-    func(req, res) : Response {
-      let file = Trie.get(files, key("profile.jpeg"), Text.equal);
-      switch file {
-        case null {
-          return res.send({
-            status_code = 404;
-            headers = [];
-            body = Text.encodeUtf8("File not found");
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          });
-        };
-        case (?blob) {
-          return res.send({
-            status_code = 200;
-            headers = [("Content-Type", "image/jpeg")];
-            body = blob;
-            streaming_strategy = null;
-            cache_strategy = #default;
-          });
-        };
-      };
-    },
-  );
-
-  public func store(path : Text, content : Blob) {
-    let (newFiles, existing) = Trie.put(
-      files, // Target trie
-      key(path), // Key
-      Text.equal, // Equality checker
-      content,
-    );
-
-    if (existing != null) {
-      server.empty_cache();
-    };
-
-    files := newFiles;
+  public func empty_cache() : async () {
+    server.empty_cache();
   };
 
-  /*
-     * http request hooks
-     */
+  public shared ({ caller }) func authorize(other : Principal) : async () {
+    assets.authorize({
+      caller;
+      other;
+    });
+  };
+
+  public query func retrieve(path : Assets.Path) : async Assets.Contents {
+    assets.retrieve(path);
+  };
+
+  public shared ({ caller }) func store(
+    arg : {
+      key : Assets.Key;
+      content_type : Text;
+      content_encoding : Text;
+      content : Blob;
+      sha256 : ?Blob;
+    }
+  ) : async () {
+    assets.store({
+      caller;
+      arg;
+    });
+  };
+
+  public query func list(arg : {}) : async [T.AssetDetails] {
+    assets.list(arg);
+  };
+  public query func get(
+    arg : {
+      key : T.Key;
+      accept_encodings : [Text];
+    }
+  ) : async ({
+    content : Blob;
+    content_type : Text;
+    content_encoding : Text;
+    total_length : Nat;
+    sha256 : ?Blob;
+  }) {
+    assets.get(arg);
+  };
+
+  public query func get_chunk(
+    arg : {
+      key : T.Key;
+      content_encoding : Text;
+      index : Nat;
+      sha256 : ?Blob;
+    }
+  ) : async ({
+    content : Blob;
+  }) {
+    assets.get_chunk(arg);
+  };
+
+  public shared ({ caller }) func create_batch(arg : {}) : async ({
+    batch_id : T.BatchId;
+  }) {
+    assets.create_batch({
+      caller;
+      arg;
+    });
+  };
+
+  public shared ({ caller }) func create_chunk(
+    arg : {
+      batch_id : T.BatchId;
+      content : Blob;
+    }
+  ) : async ({
+    chunk_id : T.ChunkId;
+  }) {
+    assets.create_chunk({
+      caller;
+      arg;
+    });
+  };
+
+  public shared ({ caller }) func commit_batch(args : T.CommitBatchArguments) : async () {
+    assets.commit_batch({
+      caller;
+      args;
+    });
+  };
+  public shared ({ caller }) func create_asset(arg : T.CreateAssetArguments) : async () {
+    assets.create_asset({
+      caller;
+      arg;
+    });
+  };
+
+  public shared ({ caller }) func set_asset_content(arg : T.SetAssetContentArguments) : async () {
+    assets.set_asset_content({
+      caller;
+      arg;
+    });
+  };
+
+  public shared ({ caller }) func unset_asset_content(args : T.UnsetAssetContentArguments) : async () {
+    assets.unset_asset_content({
+      caller;
+      args;
+    });
+  };
+
+  public shared ({ caller }) func delete_asset(args : T.DeleteAssetArguments) : async () {
+    assets.delete_asset({
+      caller;
+      args;
+    });
+  };
+
+  public shared ({ caller }) func clear(args : T.ClearArguments) : async () {
+    assets.clear({
+      caller;
+      args;
+    });
+  };
+
+   public type StreamingStrategy = {
+    #Callback : {
+      callback : shared query StreamingCallbackToken -> async StreamingCallbackHttpResponse;
+      token : StreamingCallbackToken;
+    };
+  };
+
+
+  public type StreamingCallbackToken = {
+    key : Text;
+    content_encoding : Text;
+    index : Nat;
+    sha256 : ?Blob;
+  };
+
+  public type StreamingCallbackHttpResponse = {
+    body : Blob;
+    token : ?StreamingCallbackToken;
+  };
+
+  public query func http_request_streaming_callback(token : T.StreamingCallbackToken) : async StreamingCallbackHttpResponse {
+    assets.http_request_streaming_callback(token);
+  };
+  
   public query func http_request(req : HttpRequest) : async HttpResponse {
     server.http_request(req);
   };
@@ -229,7 +211,7 @@ actor {
      * upgrade hooks
      */
   system func preupgrade() {
-    cacheStorage := server.cache.entries();
+    serializedEntries := server.entries();
   };
 
   system func postupgrade() {

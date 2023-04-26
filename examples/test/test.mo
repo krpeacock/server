@@ -15,14 +15,16 @@ import Trie "mo:base/Trie";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 
-actor {
+shared ({ caller = creator }) actor class () {
   type Response = Server.Response;
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
 
-  stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
+  stable var cacheStorage : Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server(cacheStorage);
+  var server = Server.Server({
+    serializedEntries = cacheStorage;
+  });
 
   server.get(
     "/",
@@ -31,7 +33,7 @@ actor {
         status_code = 200;
         headers = [("Content-Type", "text/html")];
         body = Text.encodeUtf8(
-         "<html><body><h1>hello world</h1></body></html>"
+          "<html><body><h1>hello world</h1></body></html>"
         );
         streaming_strategy = null;
         cache_strategy = #default;
@@ -54,7 +56,8 @@ actor {
     },
   );
 
-  server.get("/json",
+  server.get(
+    "/json",
     func(req, res) : Response {
       res.json({
         status_code = 200;
@@ -64,7 +67,8 @@ actor {
     },
   );
 
-  server.get("/404",
+  server.get(
+    "/404",
     func(req, res) : Response {
       res.send({
         status_code = 404;
@@ -81,7 +85,6 @@ actor {
   //     res.redirect("/hi");
   //   },
   // );
-  
 
   // Dynamic endpoint
   server.get(
@@ -113,7 +116,6 @@ actor {
       });
     },
   );
-
 
   type Cat = {
     name : Text;
@@ -225,7 +227,7 @@ actor {
   };
 
   system func preupgrade() {
-    cacheStorage := server.cache.entries();
+    cacheStorage := server.entries();
   };
 
   system func postupgrade() {

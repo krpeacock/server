@@ -15,14 +15,14 @@ import Trie "mo:base/Trie";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 
-actor {
+shared ({ caller = creator }) actor class () {
   type Response = Server.Response;
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
 
-  stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
+  stable var entries :Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server(cacheStorage);
+  var server = Server.Server({serializedEntries = entries});
 
   stable var files = Trie.empty<Text, Blob>();
   func key(x : Text) : Trie.Key<Text> { { key = x; hash = Text.hash(x) } };
@@ -240,7 +240,7 @@ actor {
   };
 
   system func preupgrade() {
-    cacheStorage := server.cache.entries();
+    entries := server.entries();
   };
 
   system func postupgrade() {

@@ -1,4 +1,6 @@
 import CertifiedCache "mo:certified-cache";
+import Assets "mo:assets";
+import AssetTypes "mo:assets/Types";
 import Http "mo:certified-cache/Http";
 import HashMap "mo:StableHashMap/ClassStableHashMap";
 import Text "mo:base/Text";
@@ -9,6 +11,7 @@ import Hash "mo:base/Hash";
 import HttpParser "http-parser";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
+import Option "mo:base/Option";
 
 module {
   type HttpFunction = (HttpParser.ParsedHttpRequest) -> Response;
@@ -40,18 +43,42 @@ module {
   public type HttpRequest = Http.HttpRequest;
   public type HttpResponse = Http.HttpResponse;
 
-  public class Server(entries : [(HttpRequest, (HttpResponse, Nat))]) {
+  public type SerializedEntries = ([(HttpRequest, (HttpResponse, Nat))], [(AssetTypes.Key, Assets.StableAsset)], [Principal]);
+
+  public class Server({
+    serializedEntries : SerializedEntries;
+  }) {
+    let (cacheEntries, stableAssets, cacheAuthorized) = serializedEntries;
+
+    public var authorized = cacheAuthorized;
+    private func setAuthorized(a : [Principal]) {
+      authorized := a;
+    };
+
+    let missingResponse : Response = {
+      status_code = 404;
+      headers = [];
+      body = Blob.fromArray([]);
+      streaming_strategy = null;
+      cache_strategy = #noCache;
+    };
 
     let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
+    let one_second_in_nanos = 1000 * 1000 * 1000;
 
     public var cache = CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
-      entries,
+      cacheEntries,
       compareRequests,
       hashRequest,
       encodeRequest,
       yieldResponse,
       two_days_in_nanos + Int.abs(Time.now()),
     );
+
+    // Set up asset management
+    public var assets = Assets.Assets({
+      serializedEntries = (stableAssets, authorized);
+    });
 
     var getRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
@@ -90,30 +117,30 @@ module {
     public func http_request_update(request : Http.HttpRequest) : Http.HttpResponse {
       // Application logic to process the request
       let req = HttpParser.parse(request);
-      let cacheResponse = process_request(req);
-      let response = {
-        status_code = cacheResponse.status_code;
-        headers = cacheResponse.headers;
-        body = cacheResponse.body;
-        streaming_strategy = cacheResponse.streaming_strategy;
+      let response = process_request(req);
+      let formattedResponse = {
+        status_code = response.status_code;
+        headers = response.headers;
+        body = response.body;
+        streaming_strategy = response.streaming_strategy;
         upgrade = null;
       };
 
       // expiry can be null to use the default expiry
       if (response.status_code == 200) {
-        switch (cacheResponse.cache_strategy) {
+        switch (response.cache_strategy) {
           case (#expireAfter expiry) {
-            cache.put(request, response, ?expiry.nanoseconds);
+            cache.put(request, formattedResponse, ?expiry.nanoseconds);
           };
           case (#noCache) {
             // do not cache
           };
           case (#default) {
-            cache.put(request, response, null);
+            cache.put(request, formattedResponse, null);
           };
         };
       };
-      return response;
+      return formattedResponse;
     };
 
     public func process_request(req : HttpParser.ParsedHttpRequest) : Response {
@@ -128,16 +155,8 @@ module {
               getFunction(req);
             };
             case null {
-              Debug.print("No GET function found");
-              {
-                status_code = 404;
-                headers = [];
-                body = Blob.fromArray([]);
-                streaming_strategy = null;
-                cache_strategy = #noCache;
-              };
+              staticFallback(req);
             };
-
           };
         };
         case "POST" {
@@ -148,18 +167,10 @@ module {
             };
             case null {
               Debug.print("No POST function found");
-              {
-                status_code = 404;
-                headers = [];
-                body = Blob.fromArray([]);
-                streaming_strategy = null;
-                cache_strategy = #noCache;
-              };
+              missingResponse;
             };
-
           };
         };
-
         case "PUT" {
           switch (putRequests.get(req.url.path.original)) {
             case (?putFunction) {
@@ -168,18 +179,10 @@ module {
             };
             case null {
               Debug.print("No PUT function found");
-              {
-                status_code = 404;
-                headers = [];
-                body = Blob.fromArray([]);
-                streaming_strategy = null;
-                cache_strategy = #noCache;
-              };
+              missingResponse;
             };
-
           };
         };
-
         case "DELETE" {
           switch (deleteRequests.get(req.url.path.original)) {
             case (?deleteFunction) {
@@ -188,28 +191,67 @@ module {
             };
             case null {
               Debug.print("No DELETE function found");
-              {
-                status_code = 404;
-                headers = [];
-                body = Blob.fromArray([]);
-                streaming_strategy = null;
-                cache_strategy = #noCache;
-              };
+              missingResponse;
             };
-
           };
         };
-
         case _ {
-          {
-            status_code = 404;
-            headers = [];
-            body = Blob.fromArray([]);
-            streaming_strategy = null;
-            cache_strategy = #noCache;
-          };
+          missingResponse;
         };
       };
+    };
+
+    private func staticFallback(req : HttpParser.ParsedHttpRequest) : Response {
+      Debug.print("Static fallback");
+      var b : Blob = Blob.fromArray([]);
+      switch (req.body) {
+        case (?body) {
+          b := body.original;
+        };
+        case null {
+
+        };
+      };
+      let response = assets.http_request({
+        method = req.method;
+        url = req.url.original;
+        headers = req.headers.original;
+        body = b;
+      });
+      switch (response.streaming_strategy) {
+
+        case (?strategy) {
+          // TODO - implement streaming
+          missingResponse;
+        };
+        case null {
+          switch (response.status_code) {
+            case 200 {
+              {
+                status_code = response.status_code;
+                headers = response.headers;
+                body = response.body;
+                streaming_strategy = null;
+                upgrade = null;
+                // expire after 10 seconds
+                cache_strategy = #expireAfter {
+                  nanoseconds = Int.abs(Time.now()) + 10 * one_second_in_nanos;
+                };
+              };
+            };
+            case _ {
+              missingResponse;
+            };
+          };
+
+        };
+
+      };
+
+    };
+
+    public func http_request_streaming_callback(token : AssetTypes.StreamingCallbackToken) : async AssetTypes.StreamingCallbackHttpResponse {
+      assets.http_request_streaming_callback(token);
     };
 
     // Insert request handlers into maps based on method
@@ -276,7 +318,7 @@ module {
                     cache_strategy = #noCache;
                   };
                 },
-                ?#noCache,
+                ? #noCache,
               ),
             );
             return response;
@@ -311,10 +353,15 @@ module {
         two_days_in_nanos + Int.abs(Time.now()),
       );
     };
+    public func entries() : SerializedEntries {
+      let serializedAssets = assets.entries();
+      let (stableAssets, stableAuthorized) = serializedAssets;
+      (cache.entries(), stableAssets, authorized);
+    };
   };
 
   public type ResponseFunc = (response : Response) -> Response;
-  
+
   public class ResponseClass(cb : (Response) -> Response, overrideCacheStrategy : ?CacheStrategy) {
 
     public func send(response : Response) : Response {
