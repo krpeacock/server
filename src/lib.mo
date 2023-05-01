@@ -6,6 +6,7 @@ import HashMap "mo:StableHashMap/ClassStableHashMap";
 import Text "mo:base/Text";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
+import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
 import HttpParser "http-parser";
@@ -66,8 +67,24 @@ module {
     let two_days_in_nanos = 2 * 24 * 60 * 60 * 1000 * 1000 * 1000;
     let one_second_in_nanos = 1000 * 1000 * 1000;
 
+    let filteredCacheEntries = Iter.toArray(
+      Iter.filter(
+        Iter.fromArray(cacheEntries),
+        (
+          func(entry : (HttpRequest, (HttpResponse, Nat))) : Bool {
+            let (request, (response, expiry)) = entry;
+            if (expiry > Int.abs(Time.now())) {
+              true;
+            } else {
+              false;
+            };
+          }
+        ),
+      )
+    );
+
     public var cache = CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
-      cacheEntries,
+      filteredCacheEntries,
       compareRequests,
       hashRequest,
       encodeRequest,
@@ -208,16 +225,25 @@ module {
         case (?body) {
           b := body.original;
         };
-        case null {
-
-        };
+        case null {};
       };
+      var path : Text = req.url.path.original;
+
+      if(path == "/") {
+        path := "/index.html";
+      };
+
       let response = assets.http_request({
         method = req.method;
-        url = req.url.original;
+        url = path;
         headers = req.headers.original;
         body = b;
       });
+
+      let gotAsset = assets.retrieve(path);
+
+      Debug.print("Got asset: " # debug_show Text.decodeUtf8(gotAsset));
+
       switch (response.streaming_strategy) {
 
         case (?strategy) {

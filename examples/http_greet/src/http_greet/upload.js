@@ -1,36 +1,59 @@
-const ic = require("ic0");
+// import { HttpAgent } from "ic0";
+// import fs from "fs";
+// import path from "path";
+// import { Ed25519KeyIdentity } from "@dfinity/identity";
+// import { AssetManager } from "@dfinity/assets";
+// import Ids from "../../.dfx/local/canister_ids.json";
+
+// convert imports to require
+const { HttpAgent } = require("@dfinity/agent");
 const fs = require("fs");
 const path = require("path");
-const fetch = require("isomorphic-fetch");
+const { Ed25519KeyIdentity } = require("@dfinity/identity");
+const { AssetManager } = require("@dfinity/assets");
+const Ids = require("../../.dfx/local/canister_ids.json");
 
-const { replica, HttpAgent } = ic;
+// const HOST = `http://localhost:4943`;
+const HOST = "https://icp-api.io";
+// const canisterId = Ids["test"]["local"];
+const canisterId = "qg33c-4aaaa-aaaab-qaica-cai";
 
-const run = async () => {
-  // local
-  // const agent = new HttpAgent({ host: "http://localhost:8080", fetch });
-  // await agent.fetchRootKey();
-  // const backend = replica(agent)("renrk-eyaaa-aaaaa-aaada-cai");
+const encoder = new TextEncoder();
 
-  // Production
-  const agent = new HttpAgent({ host: "https://icp-api.io", fetch });
+const seed = new Uint8Array(32);
+const base = encoder.encode("test");
+seed.set(base, 0);
+seed.fill(0);
+
+const testIdentity = Ed25519KeyIdentity.generate(seed);
+
+console.log(testIdentity.getPrincipal().toText());
+
+const main = async () => {
+  const agent = new HttpAgent({ host: HOST, identity: testIdentity });
   await agent.fetchRootKey();
-  const backend = replica(agent)("qg33c-4aaaa-aaaab-qaica-cai");
 
-  // convert all files in ./assets to number[]
-  const files = await Promise.all(
-    fs.readdirSync(path.join(__dirname, "assets")).map(async (file) => {
-      const data = await fs.promises.readFile(
-        path.join(__dirname, "assets", file)
-      );
-      return [file, new Uint8Array(data)];
-    })
-  );
-  console.log(files);
+  const assetManager = new AssetManager({
+    canisterId,
+    agent,
+  });
 
-  for (const [name, data] of files) {
-    await backend.call("store", `${name}`, data);
-    console.log(`Uploaded ${name}`);
-  }
+  const assets = [];
+  fs.readdirSync(path.join(__dirname, "assets")).forEach((file) => {
+    assets.push([file, fs.readFileSync(path.join(__dirname, "assets", file))]);
+  });
+  console.log(assets.length);
+  assets.forEach(async ([name, file]) => {
+    const key = await assetManager.store(file, { fileName: name });
+
+    const asset = await assetManager.get(key);
+
+    console.log(name, asset.length);
+  });
+
+  // test("should handle a call", async () => {
+  //   it("should handle uploads", async () => {});
+  // });
 };
 
-run();
+main();
