@@ -244,7 +244,7 @@ shared ({ caller = creator }) actor class () {
   };
 
   system func postupgrade() {
-    let _ = server.cache.pruneAll();
+    ignore server.cache.pruneAll();
   };
 
 };

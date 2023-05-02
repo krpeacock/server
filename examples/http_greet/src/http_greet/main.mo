@@ -14,10 +14,9 @@ shared ({ caller = creator }) actor class () {
 
   stable var serializedEntries : Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server({serializedEntries});
-  
-  let assets = server.assets;
+  var server = Server.Server({ serializedEntries });
 
+  let assets = server.assets;
 
   server.post(
     "/greet",
@@ -41,18 +40,28 @@ shared ({ caller = creator }) actor class () {
     },
   );
 
-  server.get("/foo", func(req : Request, res : ResponseClass) : Response {
-    res.send({
-      status_code = 200;
-      headers = [("Content-Type", "text/html")];
-      body = Text.encodeUtf8("<html><body><h1>Foo</h1></body></html>");
-      streaming_strategy = null;
-      cache_strategy = #default;
-    });
-  });
+  server.get(
+    "/foo",
+    func(req : Request, res : ResponseClass) : Response {
+      res.send({
+        status_code = 200;
+        headers = [("Content-Type", "text/html")];
+        body = Text.encodeUtf8("<html><body><h1>Foo</h1></body></html>");
+        streaming_strategy = null;
+        cache_strategy = #default;
+      });
+    },
+  );
 
   public func empty_cache() : async () {
     server.empty_cache();
+  };
+
+  public shared ({ caller }) func remove_from_cache(path : Server.Path) : async () {
+    server.remove_from_cache({
+      caller;
+      path;
+    });
   };
 
   public shared ({ caller }) func authorize(other : Principal) : async () {
@@ -176,13 +185,12 @@ shared ({ caller = creator }) actor class () {
     });
   };
 
-   public type StreamingStrategy = {
+  public type StreamingStrategy = {
     #Callback : {
       callback : shared query StreamingCallbackToken -> async StreamingCallbackHttpResponse;
       token : StreamingCallbackToken;
     };
   };
-
 
   public type StreamingCallbackToken = {
     key : Text;
@@ -199,7 +207,7 @@ shared ({ caller = creator }) actor class () {
   public query func http_request_streaming_callback(token : T.StreamingCallbackToken) : async StreamingCallbackHttpResponse {
     assets.http_request_streaming_callback(token);
   };
-  
+
   public query func http_request(req : HttpRequest) : async HttpResponse {
     server.http_request(req);
   };
@@ -215,6 +223,6 @@ shared ({ caller = creator }) actor class () {
   };
 
   system func postupgrade() {
-    let _ = server.cache.pruneAll();
+    ignore server.cache.pruneAll();
   };
 };

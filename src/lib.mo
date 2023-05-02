@@ -13,6 +13,7 @@ import HttpParser "http-parser";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Option "mo:base/Option";
+import Buffer "mo:base/Buffer";
 
 module {
   type HttpFunction = (HttpParser.ParsedHttpRequest) -> Response;
@@ -97,6 +98,7 @@ module {
       serializedEntries = (stableAssets, authorized);
     });
 
+    // #region Internals
     var getRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
     var postRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
@@ -105,62 +107,7 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    public func http_request(request : Http.HttpRequest) : Http.HttpResponse {
-      let req = HttpParser.parse(request);
-      var cachedResponse = cache.get(request);
-      switch cachedResponse {
-        case (?response) {
-          {
-            status_code = response.status_code;
-            headers = Array.append(response.headers, [cache.certificationHeader(request)]);
-            body = response.body;
-            streaming_strategy = response.streaming_strategy;
-            upgrade = null;
-          };
-        };
-        case null {
-          return {
-            status_code = 404;
-            headers = [];
-            body = Blob.fromArray([]);
-            streaming_strategy = null;
-            upgrade = ?true;
-          };
-        };
-
-      };
-    };
-
-    public func http_request_update(request : Http.HttpRequest) : Http.HttpResponse {
-      // Application logic to process the request
-      let req = HttpParser.parse(request);
-      let response = process_request(req);
-      let formattedResponse = {
-        status_code = response.status_code;
-        headers = response.headers;
-        body = response.body;
-        streaming_strategy = response.streaming_strategy;
-        upgrade = null;
-      };
-
-      // expiry can be null to use the default expiry
-      if (response.status_code == 200) {
-        switch (response.cache_strategy) {
-          case (#expireAfter expiry) {
-            cache.put(request, formattedResponse, ?expiry.nanoseconds);
-          };
-          case (#noCache) {
-            // do not cache
-          };
-          case (#default) {
-            cache.put(request, formattedResponse, null);
-          };
-        };
-      };
-      return formattedResponse;
-    };
-
-    public func process_request(req : HttpParser.ParsedHttpRequest) : Response {
+    private func process_request(req : HttpParser.ParsedHttpRequest) : Response {
       Debug.print("Processing request: " # debug_show req.url.original);
       Debug.print("Method: " # req.method);
       Debug.print("Path: " # req.url.path.original);
@@ -229,7 +176,7 @@ module {
       };
       var path : Text = req.url.path.original;
 
-      if(path == "/") {
+      if (path == "/") {
         path := "/index.html";
       };
 
@@ -369,6 +316,20 @@ module {
       registerRequestWithHandler("DELETE", path, handler);
     };
 
+    public func entries() : SerializedEntries {
+      let serializedAssets = assets.entries();
+      let (stableAssets, stableAuthorized) = serializedAssets;
+      (cache.entries(), stableAssets, authorized);
+    };
+
+    public func isAuthorized(caller : Principal) : Bool {
+      func eq(value : Principal) : Bool = value == caller;
+      Array.find(authorized, eq) != null;
+    };
+
+    // #endregion
+
+    // #region Bindings
     public func empty_cache() {
       cache := CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
         [],
@@ -379,10 +340,178 @@ module {
         two_days_in_nanos + Int.abs(Time.now()),
       );
     };
-    public func entries() : SerializedEntries {
-      let serializedAssets = assets.entries();
-      let (stableAssets, stableAuthorized) = serializedAssets;
-      (cache.entries(), stableAssets, authorized);
+
+    public func remove_from_cache(
+      {
+        caller;
+        path;
+      } : RemoveFromCacheProps
+    ) : () {
+      let authorized = isAuthorized(caller);
+      if (authorized == false) {
+        return;
+      };
+      let foundInCache = Iter.filter(
+        cache.keys(),
+        func(key : Http.HttpRequest) : Bool {
+          key.url == path;
+        },
+      );
+      for (key in foundInCache) {
+        ignore cache.remove(key);
+      };
+    };
+    public type RemoveFromCacheProps = {
+      path : Path;
+      caller : Principal;
+    };
+
+    public func http_request(request : HttpRequest) : HttpResponse {
+      let req = HttpParser.parse(request);
+      var cachedResponse = cache.get(request);
+      switch cachedResponse {
+        case (?response) {
+          {
+            status_code = response.status_code;
+            headers = Array.append(response.headers, [cache.certificationHeader(request)]);
+            body = response.body;
+            streaming_strategy = response.streaming_strategy;
+            upgrade = null;
+          };
+        };
+        case null {
+          return {
+            status_code = 404;
+            headers = [];
+            body = Blob.fromArray([]);
+            streaming_strategy = null;
+            upgrade = ?true;
+          };
+        };
+
+      };
+    };
+
+    public func http_request_update(request : HttpRequest) : HttpResponse {
+      // Application logic to process the request
+      let req = HttpParser.parse(request);
+      let response = process_request(req);
+      let formattedResponse = {
+        status_code = response.status_code;
+        headers = response.headers;
+        body = response.body;
+        streaming_strategy = response.streaming_strategy;
+        upgrade = null;
+      };
+
+      // expiry can be null to use the default expiry
+      if (response.status_code == 200) {
+        switch (response.cache_strategy) {
+          case (#expireAfter expiry) {
+            cache.put(request, formattedResponse, ?expiry.nanoseconds);
+          };
+          case (#noCache) {
+            // do not cache
+          };
+          case (#default) {
+            cache.put(request, formattedResponse, null);
+          };
+        };
+      };
+      return formattedResponse;
+    };
+
+    /**
+     * Authorize a principal to update the assets
+     * @param args
+      * @param args.caller The principal that is authorizing the other principal
+      * @param args.other The principal that is being authorized
+      * @returns ()
+      @ example
+      ```rust
+      public shared ({ caller }) func authorize(other : Principal) : async () {
+        server.authorize({ caller; other });
+      };
+      ```
+     */
+    public func authorize(
+      {
+        caller;
+        other;
+      } : AuthorizeProps
+    ) : async () {
+      authorized := joinArrays<Principal>(authorized, [other]);
+      assets.authorize({ caller; other });
+    };
+    public type AuthorizeProps = {
+      caller : Principal;
+      other : Principal;
+    };
+
+    /**
+     * Retrieve an asset at a provide path
+     * @param path The path of the asset to retrieve
+     * @returns The asset at the provided path (Blob)
+      @ example
+      ```rust
+      public shared func retrieve(path : Path) : Contents {
+        server.retrieve(path);
+      };
+      ```
+     */
+    public func retrieve(path : Path) : Contents {
+      assets.retrieve(path);
+    };
+
+    /**
+     * Store an asset at a provided path
+     * @param args
+      * @param args.key The path of the asset to store
+      * @param args.content_type The content type of the asset
+      * @param args.content_encoding The content encoding of the asset
+      * @param args.content The content of the asset
+      * @param args.sha256 The sha256 hash of the asset
+      * @returns ()
+      @ example
+      ```rust
+      public shared ({ caller }) func store(arg: StoreProps) : async () {
+        server.store({
+          caller;
+          arg;
+        });
+      };
+      ```
+     */
+    public func store({
+      arg : StoreProps;
+      caller : Principal;
+    }) : async () {
+      let result = assets.store({
+        caller;
+        arg;
+      });
+      remove_from_cache({
+        caller;
+        path = arg.key;
+      });
+    };
+    public type Key = Assets.Key;
+    public type StoreProps = {
+      key : Key;
+      content_type : Text;
+      content_encoding : Text;
+      content : Blob;
+      sha256 : ?Blob;
+    };
+
+    // #endregion
+    private func joinArrays<T>(a : [T], b : [T]) : [T] {
+      let buf = Buffer.fromArray<T>(a);
+      let vals = b.vals();
+      for (val in vals) {
+        buf.add(val);
+      };
+      Buffer.toArray(buf);
     };
   };
 
@@ -433,4 +562,10 @@ module {
   };
   // Yield a response
   public func yieldResponse(b : HttpResponse) : Blob { b.body };
+
+  // #region Public types
+  public type Path = Assets.Path;
+  public type Contents = Assets.Contents;
+
+  // #endregion
 };
