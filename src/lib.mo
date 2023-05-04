@@ -439,7 +439,7 @@ module {
         caller;
         other;
       } : AuthorizeProps
-    ) : async () {
+    ) : () {
       authorized := joinArrays<Principal>(authorized, [other]);
       assets.authorize({ caller; other });
     };
@@ -485,7 +485,7 @@ module {
     public func store({
       arg : StoreProps;
       caller : Principal;
-    }) : async () {
+    }) : () {
       let result = assets.store({
         caller;
         arg;

@@ -1,18 +1,10 @@
 # http_hello
 
-Welcome to your new http_hello project and to the internet computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.
+This is a simple hello world example that demonstrates how to use the server to replace the default actor model for interacting with your canister.
 
-To get started, you might want to explore the project directory structure and the default configuration file. Working with this project in your development environment will not affect any production deployment or identity tokens.
+It sets up a single canister that can serve all of the static assets your frontend needs while also providing a simple API for interacting with the canister.
 
-To learn more before you start working with http_hello, see the following documentation available online:
-
-- [Quick Start](https://internetcomputer.org/docs/current/developer-docs/quickstart/hello10mins)
-- [SDK Developer Tools](https://internetcomputer.org/docs/current/developer-docs/build/install-upgrade-remove)
-- [Motoko Programming Language Guide](https://internetcomputer.org/docs/current/developer-docs/build/cdks/motoko-dfinity/motoko/)
-- [Motoko Language Quick Reference](https://internetcomputer.org/docs/current/references/motoko-ref/)
-- [JavaScript API Reference](https://erxue-5aaaa-aaaab-qaagq-cai.raw.ic0.app)
-
-If you want to start working on your project right away, you might want to try the following commands:
+You can see a live version of this canister at [https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/](https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/).
 
 ```bash
 cd http_hello/
@@ -31,6 +23,20 @@ dfx start --background
 # Deploys your canisters to the replica and generates your candid interface
 dfx deploy
 ```
+
+You can upload the assets to your canister with
+
+```bash
+node src/http_greet/upload.js
+```
+
+or by building the `icx-asset` tool from the [sdk repo](https://github.com/dfinity/sdk) and running
+
+```bash
+icx-asset --pem <path to pem> --replica <replica> sync <CANISTER_ID> <DIRECTORY>
+```
+
+> There is a test PEM file provided for testing purposes. It is not secure and should not be used in production.
 
 Once the job completes, your application will be available at `http://localhost:4943?canisterId={asset_canister_id}`.
 

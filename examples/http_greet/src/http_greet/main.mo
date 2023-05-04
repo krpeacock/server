@@ -53,19 +53,8 @@ shared ({ caller = creator }) actor class () {
     },
   );
 
-  public func empty_cache() : async () {
-    server.empty_cache();
-  };
-
-  public shared ({ caller }) func remove_from_cache(path : Server.Path) : async () {
-    server.remove_from_cache({
-      caller;
-      path;
-    });
-  };
-
   public shared ({ caller }) func authorize(other : Principal) : async () {
-    assets.authorize({
+    server.authorize({
       caller;
       other;
     });
@@ -84,7 +73,7 @@ shared ({ caller = creator }) actor class () {
       sha256 : ?Blob;
     }
   ) : async () {
-    assets.store({
+    server.store({
       caller;
       arg;
     });
@@ -93,6 +82,7 @@ shared ({ caller = creator }) actor class () {
   public query func list(arg : {}) : async [T.AssetDetails] {
     assets.list(arg);
   };
+
   public query func get(
     arg : {
       key : T.Key;
@@ -108,37 +98,10 @@ shared ({ caller = creator }) actor class () {
     assets.get(arg);
   };
 
-  public query func get_chunk(
-    arg : {
-      key : T.Key;
-      content_encoding : Text;
-      index : Nat;
-      sha256 : ?Blob;
-    }
-  ) : async ({
-    content : Blob;
-  }) {
-    assets.get_chunk(arg);
-  };
-
   public shared ({ caller }) func create_batch(arg : {}) : async ({
     batch_id : T.BatchId;
   }) {
     assets.create_batch({
-      caller;
-      arg;
-    });
-  };
-
-  public shared ({ caller }) func create_chunk(
-    arg : {
-      batch_id : T.BatchId;
-      content : Blob;
-    }
-  ) : async ({
-    chunk_id : T.ChunkId;
-  }) {
-    assets.create_chunk({
       caller;
       arg;
     });
@@ -150,6 +113,7 @@ shared ({ caller = creator }) actor class () {
       args;
     });
   };
+
   public shared ({ caller }) func create_asset(arg : T.CreateAssetArguments) : async () {
     assets.create_asset({
       caller;
@@ -207,7 +171,6 @@ shared ({ caller = creator }) actor class () {
   public query func http_request_streaming_callback(token : T.StreamingCallbackToken) : async StreamingCallbackHttpResponse {
     assets.http_request_streaming_callback(token);
   };
-
   public query func http_request(req : HttpRequest) : async HttpResponse {
     server.http_request(req);
   };
