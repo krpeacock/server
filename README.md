@@ -17,6 +17,12 @@ For more information on how to install and use `mops`, see the [Mops documentati
 
 ## Setting up
 
+Recommendation: use the `http_greet` example as a starting point to have asset support. It includes a lot of boilerplate for the methods, but it will turn your canister into a full asset canister, compatible with the `icx-asset` util used by `dfx` as well as the `@dfinity/assets` npm package.
+
+> Note: chunked assets (> 2mb) are not supported yet. Coming soon.
+
+---
+
 In order to have a cache that persists across upgrades, you will need to first initialize a stable store for the entries and pass that to the server.
 
 You can then bind `http_request` and `http_request_update` to the server's `http_request` and `http_request_update` functions.
@@ -138,7 +144,8 @@ For requests that are not cached, the server will upgrade the request to an upda
 
 See the `examples` directory for examples of how to use this library. These examples are also available on the Internet Computer as canisters:
 
-- Demo: https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/
+- Http Hello: [https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/]([https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/])
+- Demo: [https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/]([https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/])
 
 ## Roadmap
 
@@ -149,7 +156,7 @@ See the `examples` directory for examples of how to use this library. These exam
 - [ ] `/*` selectors
 - [ ] `path/*` selectors
 - [ ] `*.ext` selectors
-- [ ] Asset Canister (`icx-asset` support)
+- [x] Asset Canister (`icx-asset` support)
 - [ ] `res.redirect`
 - [ ] `res.sendFile`
 - [ ] `res.download`
