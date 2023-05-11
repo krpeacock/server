@@ -9,7 +9,7 @@ import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
-import HttpParser "http-parser";
+import HttpParser "mo:http-parser.mo";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Option "mo:base/Option";

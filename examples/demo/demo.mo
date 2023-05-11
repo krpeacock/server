@@ -20,9 +20,9 @@ shared ({ caller = creator }) actor class () {
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
 
-  stable var entries :Server.SerializedEntries = ([], [], [creator]);
+   stable var serializedEntries : Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server({serializedEntries = entries});
+    var server = Server.Server({ serializedEntries });
 
   stable var files = Trie.empty<Text, Blob>();
   func key(x : Text) : Trie.Key<Text> { { key = x; hash = Text.hash(x) } };
@@ -240,7 +240,7 @@ shared ({ caller = creator }) actor class () {
   };
 
   system func preupgrade() {
-    entries := server.entries();
+    serializedEntries := server.entries();
   };
 
   system func postupgrade() {
