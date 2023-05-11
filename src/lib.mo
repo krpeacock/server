@@ -16,21 +16,11 @@ import Option "mo:base/Option";
 import Buffer "mo:base/Buffer";
 
 module {
-  type HttpFunction = (HttpParser.ParsedHttpRequest) -> Response;
-  type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
+  // Public Types
+  public type HttpRequest = Http.HttpRequest;
+  public type HttpResponse = Http.HttpResponse;
 
-  type CacheStrategy = {
-    #default;
-    #noCache;
-    #expireAfter : { nanoseconds : Nat };
-  };
-
-  public type BasicResponse = {
-    status_code : Nat16;
-    headers : [Http.HeaderField];
-    body : Blob;
-    streaming_strategy : ?Http.StreamingStrategy;
-  };
+  public type Request = HttpParser.ParsedHttpRequest;
 
   public type Response = {
     status_code : Nat16;
@@ -40,12 +30,41 @@ module {
     cache_strategy : CacheStrategy;
   };
 
-  public type Request = HttpParser.ParsedHttpRequest;
-
-  public type HttpRequest = Http.HttpRequest;
-  public type HttpResponse = Http.HttpResponse;
-
   public type SerializedEntries = ([(HttpRequest, (HttpResponse, Nat))], [(AssetTypes.Key, Assets.StableAsset)], [Principal]);
+
+  // Public Functions
+  
+  // Compare two requests
+  public func compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool {
+    req1.url == req2.url;
+  };
+  // Hash a request
+  public func hashRequest(req : HttpRequest) : Hash.Hash {
+    Text.hash(req.url);
+  };
+  // Encode a request
+  public func encodeRequest(req : HttpRequest) : Blob {
+    Text.encodeUtf8(req.url);
+  };
+  // Yield a response
+  public func yieldResponse(b : HttpResponse) : Blob { b.body };
+
+  // Private Types
+  type HttpFunction = (Request) -> Response;
+  type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
+
+  type CacheStrategy = {
+    #default;
+    #noCache;
+    #expireAfter : { nanoseconds : Nat };
+  };
+
+  type BasicResponse = {
+    status_code : Nat16;
+    headers : [Http.HeaderField];
+    body : Blob;
+    streaming_strategy : ?Http.StreamingStrategy;
+  };
 
   public class Server({
     serializedEntries : SerializedEntries;
@@ -107,7 +126,7 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    private func process_request(req : HttpParser.ParsedHttpRequest) : Response {
+    private func process_request(req : Request) : Response {
       Debug.print("Processing request: " # debug_show req.url.original);
       Debug.print("Method: " # req.method);
       Debug.print("Path: " # req.url.path.original);
@@ -165,7 +184,7 @@ module {
       };
     };
 
-    private func staticFallback(req : HttpParser.ParsedHttpRequest) : Response {
+    private func staticFallback(req : Request) : Response {
       Debug.print("Static fallback");
       var b : Blob = Blob.fromArray([]);
       switch (req.body) {
@@ -312,7 +331,7 @@ module {
       registerRequestWithHandler("PUT", path, handler);
     };
 
-    public func delete(path : Text, handler : (request : HttpParser.ParsedHttpRequest, response : ResponseClass) -> Response) {
+    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
       registerRequestWithHandler("DELETE", path, handler);
     };
 
@@ -515,8 +534,6 @@ module {
     };
   };
 
-  public type ResponseFunc = (response : Response) -> Response;
-
   public class ResponseClass(cb : (Response) -> Response, overrideCacheStrategy : ?CacheStrategy) {
 
     public func send(response : Response) : Response {
@@ -547,25 +564,6 @@ module {
       });
     };
   };
-
-  // Compare two requests
-  public func compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool {
-    req1.url == req2.url;
-  };
-  // Hash a request
-  public func hashRequest(req : HttpRequest) : Hash.Hash {
-    Text.hash(req.url);
-  };
-  // Encode a request
-  public func encodeRequest(req : HttpRequest) : Blob {
-    Text.encodeUtf8(req.url);
-  };
-  // Yield a response
-  public func yieldResponse(b : HttpResponse) : Blob { b.body };
-
-  // #region Public types
-  public type Path = Assets.Path;
-  public type Contents = Assets.Contents;
 
   // #endregion
 };

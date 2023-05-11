@@ -2,6 +2,10 @@
 
 This is a simple HTTP server for Motoko. Its interface is designed to be similar to the popular Express.js library for Node.js.
 
+Check out the [examples](./examples) directory for examples of how to use this library.
+
+Live http_greet example: [https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/]([https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/])
+
 # Installation
 
 To install this library, run the following command:
@@ -35,24 +39,18 @@ Here is an example of how to set up a server with a cache:
 import Server "mo:server";
 
 actor {
-    type Request = Server.Request;
-    type Response = Server.Response;
-    type HttpRequest = Server.HttpRequest;
-    type HttpResponse = Server.HttpResponse;
-    type ResponseClass = Server.ResponseClass;
+    stable var serializedEntries : Server.SerializedEntries = ([], [], [creator]);
 
-    stable var cacheStorage : [(HttpRequest, (HttpResponse, Nat))] = [];
-
-    var server = Server.Server(cacheStorage);
+    var server = Server.Server({ serializedEntries });
 
 
     /*
      * http request hooks
      */
-    public query func http_request(req : HttpRequest) : async HttpResponse {
+    public query func http_request(req : Server.HttpRequest) : async Server.HttpResponse {
         server.http_request(req);
     };
-    public func http_request_update(req : HttpRequest) : async HttpResponse {
+    public func http_request_update(req : Server.HttpRequest) : async Server.HttpResponse {
         server.http_request_update(req);
     };
 
@@ -81,7 +79,9 @@ The callback function takes a `Request` object and a `Response` object. The `Req
 Here is an example of how to add a route to the server:
 
 ```lua
-server.get("/", func (req, res) {
+type Request = Server.Request;
+type Response = Server.Response;
+server.get("/", func (req : Request, res : Response) : Response {
     res.send({
         status_code = 200;
         headers = [("Content-Type", "text/plain")];
@@ -95,7 +95,7 @@ server.get("/", func (req, res) {
 You can also use `res.json` to send a JSON response:
 
 ```lua
-server.get("/api", func (req, res) {
+server.get("/api", func (req : Request, res : Response) : Response {
     res.json({
         status_code = 200;
         body = "{ \"hello\": \"world\" }";
@@ -163,6 +163,54 @@ See the `examples` directory for examples of how to use this library. These exam
 - [ ] `res.render`
 - [ ] `res.sendStatus`
 - [ ] Certification v2 support (fast dynamic queries)
+
+## Reference
+
+Below are all of the types and functions that are exported by this library, as well as links to where these types are defined.
+
+### Types
+
+- `type HttpRequest = Server.HttpRequest` - [./src/Server.mo](https://github.com/krpeacock/certified-cache/blob/c1f209d14f490f905b7de2a2bd3f917377310675/src/Http.mo#L36)
+- `type HttpResponse = Server.HttpResponse` - [./src/Server.mo](https://github.com/krpeacock/certified-cache/blob/c1f209d14f490f905b7de2a2bd3f917377310675/src/Http.mo#L28)
+- `type Request = Server.Request` - [./src/Server.mo](https://github.com/NatLabs/http-parser.mo/blob/27cba8ed0d39387e0fb660f65909ffe2a7d54413/src/Types.mo#L92)
+- `type Response = Server.Response` - 
+  ```
+  {
+    status_code : Nat16;
+    headers : [Http.HeaderField];
+    body : Blob;
+    streaming_strategy : ?Http.StreamingStrategy;
+    cache_strategy : CacheStrategy;
+  };
+  ```
+- `type SerializedEntries = Server.SerializedEntries`
+```
+(
+    [(HttpRequest, (HttpResponse, Nat))],
+    [(AssetTypes.Key, Assets.StableAsset)], 
+    [Principal]
+)
+```
+
+### Classes
+
+- Server - the primary export of this library
+- ResponseClass - a class provided during `get`, `post`, `put`, and `delete`, with the following methods: 
+    - `send (Response) : async ()`
+    - `json (Response) : async ()`
+
+### Functions
+
+These functions are used internally by the library, but are also exported for use by other libraries.
+
+- `compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool`
+    - Compares two requests to see if they are equal
+- `hashRequest(req : HttpRequest) : Hash.Hash`
+    - Hashes a request
+- `public func encodeRequest(req : HttpRequest) : Blob`
+    - Encodes a request as a blob
+- `public func yieldResponse(b : HttpResponse) : Blob`
+    - Encodes a response as a blob
 
 ## Credits
 
