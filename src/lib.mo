@@ -32,8 +32,11 @@ module {
 
   public type SerializedEntries = ([(HttpRequest, (HttpResponse, Nat))], [(AssetTypes.Key, Assets.StableAsset)], [Principal]);
 
+  public type Path = Assets.Path;
+  public type Contents = Assets.Contents;
+
   // Public Functions
-  
+
   // Compare two requests
   public func compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool {
     req1.url == req2.url;
@@ -385,6 +388,16 @@ module {
       caller : Principal;
     };
 
+    private func joinArrays<T>(a : [T], b : [T]) : [T] {
+      let buf = Buffer.fromArray<T>(a);
+      var i = 0;
+      for(j in Iter.range(0, Array.size(b))) {
+        buf.add(b[j]);
+        i += j;
+      };
+      Buffer.toArray(buf);
+    };
+
     public func http_request(request : HttpRequest) : HttpResponse {
       let req = HttpParser.parse(request);
       var cachedResponse = cache.get(request);
@@ -392,7 +405,7 @@ module {
         case (?response) {
           {
             status_code = response.status_code;
-            headers = Array.append(response.headers, [cache.certificationHeader(request)]);
+            headers = joinArrays(response.headers, [cache.certificationHeader(request)]);
             body = response.body;
             streaming_strategy = response.streaming_strategy;
             upgrade = null;
@@ -521,16 +534,6 @@ module {
       content_encoding : Text;
       content : Blob;
       sha256 : ?Blob;
-    };
-
-    // #endregion
-    private func joinArrays<T>(a : [T], b : [T]) : [T] {
-      let buf = Buffer.fromArray<T>(a);
-      let vals = b.vals();
-      for (val in vals) {
-        buf.add(val);
-      };
-      Buffer.toArray(buf);
     };
   };
 
