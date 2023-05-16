@@ -32,8 +32,11 @@ module {
 
   public type SerializedEntries = ([(HttpRequest, (HttpResponse, Nat))], [(AssetTypes.Key, Assets.StableAsset)], [Principal]);
 
+  public type Path = Assets.Path;
+  public type Contents = Assets.Contents;
+
   // Public Functions
-  
+
   // Compare two requests
   public func compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool {
     req1.url == req2.url;
@@ -392,7 +395,7 @@ module {
         case (?response) {
           {
             status_code = response.status_code;
-            headers = Array.append(response.headers, [cache.certificationHeader(request)]);
+            headers = joinArrays(response.headers, [cache.certificationHeader(request)]);
             body = response.body;
             streaming_strategy = response.streaming_strategy;
             upgrade = null;

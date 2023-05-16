@@ -40,7 +40,7 @@ jobs:
         run: echo y | sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
       
       - name: Start dfx
-        run: dfx start --background --clean
+        run: dfx start --background --clean --host 127.0.0.1:4943
 
       - name: Deploy test canister
         run: dfx deploy test
