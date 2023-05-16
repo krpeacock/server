@@ -6,7 +6,11 @@
     },
     "test": {
       "type": "motoko",
-      "main": "examples/test/test.mo"
+      "main": "examples/test/test.mo",
+      "declarations": {
+        "output": "declarations",
+        "node_compatibility": true
+      }
     }
   },
   "defaults": {
