@@ -7,7 +7,6 @@ import Text "mo:base/Text";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
-import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
 import HttpParser "mo:http-parser.mo";
 import Int "mo:base/Int";
@@ -130,14 +129,10 @@ module {
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
     private func process_request(req : Request) : async Response {
-      Debug.print("Processing request: " # debug_show req.url.original);
-      Debug.print("Method: " # req.method);
-      Debug.print("Path: " # req.url.path.original);
       switch (req.method) {
         case "GET" {
           switch (getRequests.get(req.url.path.original)) {
             case (?getFunction) {
-              Debug.print("Found GET function");
               await getFunction(req);
             };
             case null {
@@ -148,11 +143,9 @@ module {
         case "POST" {
           switch (postRequests.get(req.url.path.original)) {
             case (?postFunction) {
-              Debug.print("Found POST function");
               await postFunction(req);
             };
             case null {
-              Debug.print("No POST function found");
               missingResponse;
             };
           };
@@ -160,11 +153,9 @@ module {
         case "PUT" {
           switch (putRequests.get(req.url.path.original)) {
             case (?putFunction) {
-              Debug.print("Found PUT function");
               await putFunction(req);
             };
             case null {
-              Debug.print("No PUT function found");
               missingResponse;
             };
           };
@@ -172,11 +163,9 @@ module {
         case "DELETE" {
           switch (deleteRequests.get(req.url.path.original)) {
             case (?deleteFunction) {
-              Debug.print("Found DELETE function");
               await deleteFunction(req);
             };
             case null {
-              Debug.print("No DELETE function found");
               missingResponse;
             };
           };
@@ -188,7 +177,6 @@ module {
     };
 
     private func staticFallback(req : Request) : Response {
-      Debug.print("Static fallback");
       var b : Blob = Blob.fromArray([]);
       switch (req.body) {
         case (?body) {
@@ -211,7 +199,6 @@ module {
 
       let gotAsset = assets.retrieve(path);
 
-      Debug.print("Got asset: " # debug_show Text.decodeUtf8(gotAsset));
 
       switch (response.streaming_strategy) {
 
@@ -265,7 +252,6 @@ module {
           deleteRequests.put(url, function);
         };
         case _ {
-          Debug.print("Unknown method: " # method);
         };
       };
     };
