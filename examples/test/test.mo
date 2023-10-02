@@ -19,6 +19,8 @@ shared ({ caller = creator }) actor class () {
   type Response = Server.Response;
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
+  type Request = Server.Request;
+  type ResponseClass = Server.ResponseClass;
 
   stable var cacheStorage : Server.SerializedEntries = ([], [], [creator]);
 
@@ -28,7 +30,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/",
-    func(req, res) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 200;
         headers = [("Content-Type", "text/html")];
@@ -44,7 +46,7 @@ shared ({ caller = creator }) actor class () {
   // Cached endpoint
   server.get(
     "/hi",
-    func(req, res) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       Debug.print("hi");
       res.send({
         headers = [("Content-Type", "text/plain")];
@@ -58,7 +60,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/json",
-    func(req, res) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.json({
         status_code = 200;
         body = "{ \"hello\": \"world\" }";
@@ -69,7 +71,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/404",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       res.send({
         status_code = 404;
         headers = [];
@@ -89,7 +91,7 @@ shared ({ caller = creator }) actor class () {
   // Dynamic endpoint
   server.get(
     "/queryParams",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       let obj = req.url.queryObj;
       let keys = Iter.fromArray(obj.keys);
 
@@ -125,7 +127,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/cats",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       let catEntries = cats.entries();
 
       var catJson = "{ ";
@@ -172,7 +174,7 @@ shared ({ caller = creator }) actor class () {
 
   server.post(
     "/cats",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       let body = req.body;
       switch body {
         case null {
@@ -219,7 +221,7 @@ shared ({ caller = creator }) actor class () {
     server.http_request(req);
   };
   public func http_request_update(req : HttpRequest) : async HttpResponse {
-    server.http_request_update(req);
+    await server.http_request_update(req);
   };
 
   public func invalidate_cache() : async () {

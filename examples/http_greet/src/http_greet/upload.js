@@ -13,10 +13,10 @@ const { Ed25519KeyIdentity } = require("@dfinity/identity");
 const { AssetManager } = require("@dfinity/assets");
 const Ids = require("../../.dfx/local/canister_ids.json");
 
-// const HOST = `http://localhost:4943`;
-const HOST = "https://icp-api.io";
-// const canisterId = Ids["test"]["local"];
-const canisterId = "qg33c-4aaaa-aaaab-qaica-cai";
+const HOST = `http://127.0.0.1:4943`;
+// const HOST = "https://icp-api.io";
+const canisterId = Ids["http_greet"]["local"];
+// const canisterId = "qg33c-4aaaa-aaaab-qaica-cai";
 
 const encoder = new TextEncoder();
 
@@ -27,7 +27,32 @@ seed.fill(0);
 
 const testIdentity = Ed25519KeyIdentity.generate(seed);
 
-console.log(testIdentity.getPrincipal().toText());
+// spawn shell command
+const { spawn } = require("child_process");
+const child = spawn("dfx", [
+  "canister",
+  "call",
+  "http_greet",
+  "authorize",
+  `(principal "${testIdentity.getPrincipal().toText()}")`,
+]);
+
+console.log("authorizing identity...");
+
+child.stdout.on("data", (data) => {
+  console.log(`success: ${data}`);
+});
+
+child.stderr.on("data", (data) => {
+  console.error(data);
+});
+
+child.on("close", (code) => {
+  main();
+});
+
+
+
 
 const main = async () => {
   const agent = new HttpAgent({ host: HOST, identity: testIdentity });

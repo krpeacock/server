@@ -53,7 +53,7 @@ module {
   public func yieldResponse(b : HttpResponse) : Blob { b.body };
 
   // Private Types
-  type HttpFunction = (Request) -> Response;
+  type HttpFunction = (Request) -> async Response;
   type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
 
   type CacheStrategy = {
@@ -129,7 +129,7 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    private func process_request(req : Request) : Response {
+    private func process_request(req : Request) : async Response {
       Debug.print("Processing request: " # debug_show req.url.original);
       Debug.print("Method: " # req.method);
       Debug.print("Path: " # req.url.path.original);
@@ -138,7 +138,7 @@ module {
           switch (getRequests.get(req.url.path.original)) {
             case (?getFunction) {
               Debug.print("Found GET function");
-              getFunction(req);
+              await getFunction(req);
             };
             case null {
               staticFallback(req);
@@ -149,7 +149,7 @@ module {
           switch (postRequests.get(req.url.path.original)) {
             case (?postFunction) {
               Debug.print("Found POST function");
-              postFunction(req);
+              await postFunction(req);
             };
             case null {
               Debug.print("No POST function found");
@@ -161,7 +161,7 @@ module {
           switch (putRequests.get(req.url.path.original)) {
             case (?putFunction) {
               Debug.print("Found PUT function");
-              putFunction(req);
+              await putFunction(req);
             };
             case null {
               Debug.print("No PUT function found");
@@ -173,7 +173,7 @@ module {
           switch (deleteRequests.get(req.url.path.original)) {
             case (?deleteFunction) {
               Debug.print("Found DELETE function");
-              deleteFunction(req);
+              await deleteFunction(req);
             };
             case null {
               Debug.print("No DELETE function found");
@@ -272,12 +272,12 @@ module {
     // Register a request handler that will be cached
     // GET requests are cached by default
     // POST, PUT, DELETE requests are not cached
-    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       if (method == "GET") {
         registerRequest(
           method,
           path,
-          func(request : Request) : Response {
+          func(request : Request) : async Response {
             var response = handler(
               request,
               ResponseClass(
@@ -293,14 +293,14 @@ module {
                 ? #default,
               ),
             );
-            return response;
+            return await response;
           },
         );
       } else {
         registerRequest(
           method,
           path,
-          func(request : Request) : Response {
+          func(request : Request) : async Response {
             var response = handler(
               request,
               ResponseClass(
@@ -316,25 +316,25 @@ module {
                 ? #noCache,
               ),
             );
-            return response;
+            return await response;
           },
         );
       };
     };
 
-    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("GET", path, handler);
     };
 
-    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("POST", path, handler);
     };
 
-    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("PUT", path, handler);
     };
 
-    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("DELETE", path, handler);
     };
 
@@ -414,10 +414,10 @@ module {
       };
     };
 
-    public func http_request_update(request : HttpRequest) : HttpResponse {
+    public func http_request_update(request : HttpRequest) : async HttpResponse {
       // Application logic to process the request
       let req = HttpParser.parse(request);
-      let response = process_request(req);
+      let response = await process_request(req);
       let formattedResponse = {
         status_code = response.status_code;
         headers = response.headers;

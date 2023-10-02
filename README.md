@@ -33,7 +33,7 @@ You can then bind `http_request` and `http_request_update` to the server's `http
 
 Finally, you should add the `preupgrade` and `postupgrade` system functions to your actor. These will be called when the actor is upgraded, and will be used to save the cache and prune it.
 
-Here is an example of how to set up a server with a cache:
+Here is a basic example of how to set up a server with a cache:
 
 ```lua
 import Server "mo:server";
@@ -50,8 +50,8 @@ actor {
     public query func http_request(req : Server.HttpRequest) : async Server.HttpResponse {
         server.http_request(req);
     };
-    public func http_request_update(req : Server.HttpRequest) : async Server.HttpResponse {
-        server.http_request_update(req);
+    public func http_request_update(req : HttpRequest) : async HttpResponse {
+        await server.http_request_update(req);
     };
 
 
@@ -59,7 +59,7 @@ actor {
      * upgrade hooks
      */
     system func preupgrade() {
-        cacheStorage := server.cache.entries();
+        serializedEntries := server.entries();
     };
 
     system func postupgrade() {
@@ -81,7 +81,8 @@ Here is an example of how to add a route to the server:
 ```lua
 type Request = Server.Request;
 type Response = Server.Response;
-server.get("/", func (req : Request, res : Response) : Response {
+type ResponseClass = Server.ResponseClass;
+server.get("/", func (req : Request, res : ResponseClass) : async Response {
     res.send({
         status_code = 200;
         headers = [("Content-Type", "text/plain")];
@@ -95,7 +96,7 @@ server.get("/", func (req : Request, res : Response) : Response {
 You can also use `res.json` to send a JSON response:
 
 ```lua
-server.get("/api", func (req : Request, res : Response) : Response {
+server.get("/api", func (req : Request, res : ResponseClass) : async Response {
     res.json({
         status_code = 200;
         body = "{ \"hello\": \"world\" }";
@@ -107,6 +108,8 @@ server.get("/api", func (req : Request, res : Response) : Response {
 ## Request and response objects
 
 The `Request` object contains information about the request, such as the request body, query parameters, and headers.
+
+ResponseClass is a class that will register the functions you provide with the server, so that they can be called when there is a cache miss to the provided route.
 
 The `Response` object is used to send a response to the client.
 
@@ -144,8 +147,7 @@ For requests that are not cached, the server will upgrade the request to an upda
 
 See the `examples` directory for examples of how to use this library. These examples are also available on the Internet Computer as canisters:
 
-- Http Hello: [https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/]([https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/])
-- Demo: [https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/]([https://q56hh-gyaaa-aaaab-qaiaq-cai.ic0.app/])
+- Http Greet: [https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/]([https://qg33c-4aaaa-aaaab-qaica-cai.ic0.app/])
 
 ## Roadmap
 
