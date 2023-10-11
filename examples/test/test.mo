@@ -16,17 +16,15 @@ import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 
 shared ({ caller = creator }) actor class () {
+  type Request = Server.Request;
   type Response = Server.Response;
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
-  type Request = Server.Request;
   type ResponseClass = Server.ResponseClass;
 
-  stable var cacheStorage : Server.SerializedEntries = ([], [], [creator]);
+  stable var serializedEntries : Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server({
-    serializedEntries = cacheStorage;
-  });
+  var server = Server.Server({ serializedEntries });
 
   server.get(
     "/",
@@ -229,7 +227,7 @@ shared ({ caller = creator }) actor class () {
   };
 
   system func preupgrade() {
-    cacheStorage := server.entries();
+    serializedEntries := server.entries();
   };
 
   system func postupgrade() {

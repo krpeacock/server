@@ -1,9 +1,5 @@
 {
   "canisters": {
-    "demo": {
-      "type": "motoko",
-      "main": "examples/demo/demo.mo"
-    },
     "test": {
       "type": "motoko",
       "main": "examples/test/test.mo",

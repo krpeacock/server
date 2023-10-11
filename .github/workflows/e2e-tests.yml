@@ -39,17 +39,17 @@ jobs:
       - name: Install dfx
         run: echo y | sh -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
       
-      - name: Start dfx
-        run: dfx start --background --clean --host 127.0.0.1:4943
+      # - name: Start dfx
+      #   run: dfx start --background --clean --host 127.0.0.1:4943
 
       - name: Deploy test canister
-        run: dfx deploy test
+        run: dfx deploy test --network ic
 
       - name: Run e2e tests
         run: npm run test:e2e
 
-      - name: Clean Up
-        run: killall dfx replica
+      # - name: Clean Up
+      #   run: killall dfx replica
 
   aggregate:
     name: e2e:required

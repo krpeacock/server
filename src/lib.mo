@@ -274,8 +274,7 @@ module {
                     streaming_strategy = res.streaming_strategy;
                     cache_strategy = #default;
                   };
-                },
-                ? #default,
+                }
               ),
             );
             return await response;
@@ -297,8 +296,7 @@ module {
                     streaming_strategy = res.streaming_strategy;
                     cache_strategy = #noCache;
                   };
-                },
-                ? #noCache,
+                }
               ),
             );
             return await response;
@@ -522,7 +520,7 @@ module {
     };
   };
 
-  public class ResponseClass(cb : (Response) -> Response, overrideCacheStrategy : ?CacheStrategy) {
+  public class ResponseClass(cb : (Response) -> Response) {
 
     public func send(response : Response) : Response {
       cb(response);
@@ -535,20 +533,12 @@ module {
         cache_strategy : CacheStrategy;
       }
     ) : Response {
-      let cache_strategy = switch (overrideCacheStrategy) {
-        case (?cacheStrategy) {
-          cacheStrategy;
-        };
-        case null {
-          response.cache_strategy;
-        };
-      };
       cb({
         status_code = response.status_code;
         headers = [("content-type", "application/json")];
         body = Text.encodeUtf8(response.body);
         streaming_strategy = null;
-        cache_strategy = cache_strategy;
+        cache_strategy = response.cache_strategy;
       });
     };
   };

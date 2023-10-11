@@ -178,9 +178,9 @@ shared ({ caller = creator }) actor class () {
     await server.http_request_update(req);
   };
 
-  /*
-     * upgrade hooks
-     */
+  /**
+    * upgrade hooks
+    */
   system func preupgrade() {
     serializedEntries := server.entries();
   };
