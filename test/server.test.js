@@ -3,6 +3,8 @@ import fetch from "isomorphic-fetch";
 import canisterIds from "../.dfx/local/canister_ids.json";
 const helloCanisterId = canisterIds.test.local;
 
+console.log(`canisterId: ${helloCanisterId}`);
+
 const express = require("express");
 const app = express();
 

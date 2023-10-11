@@ -25,7 +25,7 @@
     "copy-webpack-plugin": "^11.0.0",
     "events": "3.3.0",
     "html-webpack-plugin": "5.5.0",
-    "ic-mops": "^0.9.1",
+    "ic-mops": "^0.28.1",
     "ic0": "^0.2.7",
     "isomorphic-fetch": "^3.0.0",
     "mo-dev": "^0.7.1",

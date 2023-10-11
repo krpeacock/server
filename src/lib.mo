@@ -199,7 +199,6 @@ module {
 
       let gotAsset = assets.retrieve(path);
 
-
       switch (response.streaming_strategy) {
 
         case (?strategy) {

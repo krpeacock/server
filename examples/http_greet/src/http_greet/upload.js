@@ -81,4 +81,3 @@ const main = async () => {
   // });
 };
 
-main();
