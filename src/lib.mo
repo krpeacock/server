@@ -13,6 +13,7 @@ import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Option "mo:base/Option";
 import Buffer "mo:base/Buffer";
+import Debug "mo:base/Debug";
 
 module {
   // Public Types
@@ -266,13 +267,13 @@ module {
             var response = handler(
               request,
               ResponseClass(
-                func(res : BasicResponse) : Response {
+                func(res : Response) : Response {
                   return {
                     status_code = res.status_code;
                     headers = res.headers;
                     body = res.body;
                     streaming_strategy = res.streaming_strategy;
-                    cache_strategy = #default;
+                    cache_strategy = res.cache_strategy;
                   };
                 }
               ),
@@ -408,6 +409,8 @@ module {
         streaming_strategy = response.streaming_strategy;
         upgrade = null;
       };
+
+      Debug.print("cache strategy: " # debug_show response.cache_strategy);
 
       // expiry can be null to use the default expiry
       if (response.status_code == 200) {

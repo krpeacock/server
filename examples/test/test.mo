@@ -61,7 +61,7 @@ shared ({ caller = creator }) actor class () {
     func(req : Request, res : ResponseClass) : async Response {
       res.json({
         status_code = 200;
-        body = "{ \"hello\": \"world\" }";
+        body = "{\"hello\":\"world\"}";
         cache_strategy = #noCache;
       });
     },
@@ -72,7 +72,7 @@ shared ({ caller = creator }) actor class () {
     func(req: Request, res: ResponseClass) : async Response {
       res.send({
         status_code = 404;
-        headers = [];
+        headers = [("Content-Type", "text/plain")];
         body = Text.encodeUtf8("Not found");
         streaming_strategy = null;
         cache_strategy = #noCache;
@@ -100,12 +100,12 @@ shared ({ caller = creator }) actor class () {
         switch value {
           case null {};
           case (?value) {
-            body := body # "\"" # key # "\": \"" # value # "\", ";
+            body := body # "\"" # key # "\":\"" # value # "\",";
           };
         };
       };
       // trim the last comma
-      body := Text.trimEnd(body, #text ", ");
+      body := Text.trimEnd(body, #text ",");
 
       body := body # "}";
 
@@ -131,7 +131,7 @@ shared ({ caller = creator }) actor class () {
       var catJson = "{ ";
       for (entry in catEntries) {
         let (id, cat) = entry;
-        catJson := catJson # "\"" # id # "\": { \"name\": \"" # cat.name # "\", \"age\": " # Nat.toText(cat.age) # " }, ";
+        catJson := catJson # "\"" # id # "\": {\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}, ";
       };
       catJson := Text.trimEnd(catJson, #text ", ");
       catJson := catJson # " }";
