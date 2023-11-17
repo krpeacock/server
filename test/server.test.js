@@ -1,6 +1,6 @@
 import { expect, test, describe, afterAll } from "vitest";
 import fetch from "isomorphic-fetch";
-import canisterIds from "../.dfx/local/canister_ids.json";
+// import canisterIds from "../.dfx/local/canister_ids.json";
 import mainnetIds from "../canister_ids.json";
 
 const express = require("express");
