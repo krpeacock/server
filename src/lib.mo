@@ -7,13 +7,13 @@ import Text "mo:base/Text";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
-import Debug "mo:base/Debug";
 import Hash "mo:base/Hash";
 import HttpParser "mo:http-parser.mo";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Option "mo:base/Option";
 import Buffer "mo:base/Buffer";
+import Debug "mo:base/Debug";
 
 module {
   // Public Types
@@ -53,7 +53,7 @@ module {
   public func yieldResponse(b : HttpResponse) : Blob { b.body };
 
   // Private Types
-  type HttpFunction = (Request) -> Response;
+  type HttpFunction = (Request) -> async Response;
   type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
 
   type CacheStrategy = {
@@ -129,16 +129,12 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    private func process_request(req : Request) : Response {
-      Debug.print("Processing request: " # debug_show req.url.original);
-      Debug.print("Method: " # req.method);
-      Debug.print("Path: " # req.url.path.original);
+    private func process_request(req : Request) : async Response {
       switch (req.method) {
         case "GET" {
           switch (getRequests.get(req.url.path.original)) {
             case (?getFunction) {
-              Debug.print("Found GET function");
-              getFunction(req);
+              await getFunction(req);
             };
             case null {
               staticFallback(req);
@@ -148,11 +144,9 @@ module {
         case "POST" {
           switch (postRequests.get(req.url.path.original)) {
             case (?postFunction) {
-              Debug.print("Found POST function");
-              postFunction(req);
+              await postFunction(req);
             };
             case null {
-              Debug.print("No POST function found");
               missingResponse;
             };
           };
@@ -160,11 +154,9 @@ module {
         case "PUT" {
           switch (putRequests.get(req.url.path.original)) {
             case (?putFunction) {
-              Debug.print("Found PUT function");
-              putFunction(req);
+              await putFunction(req);
             };
             case null {
-              Debug.print("No PUT function found");
               missingResponse;
             };
           };
@@ -172,11 +164,9 @@ module {
         case "DELETE" {
           switch (deleteRequests.get(req.url.path.original)) {
             case (?deleteFunction) {
-              Debug.print("Found DELETE function");
-              deleteFunction(req);
+              await deleteFunction(req);
             };
             case null {
-              Debug.print("No DELETE function found");
               missingResponse;
             };
           };
@@ -188,7 +178,6 @@ module {
     };
 
     private func staticFallback(req : Request) : Response {
-      Debug.print("Static fallback");
       var b : Blob = Blob.fromArray([]);
       switch (req.body) {
         case (?body) {
@@ -210,8 +199,6 @@ module {
       });
 
       let gotAsset = assets.retrieve(path);
-
-      Debug.print("Got asset: " # debug_show Text.decodeUtf8(gotAsset));
 
       switch (response.streaming_strategy) {
 
@@ -265,42 +252,40 @@ module {
           deleteRequests.put(url, function);
         };
         case _ {
-          Debug.print("Unknown method: " # method);
         };
       };
     };
     // Register a request handler that will be cached
     // GET requests are cached by default
     // POST, PUT, DELETE requests are not cached
-    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       if (method == "GET") {
         registerRequest(
           method,
           path,
-          func(request : Request) : Response {
+          func(request : Request) : async Response {
             var response = handler(
               request,
               ResponseClass(
-                func(res : BasicResponse) : Response {
+                func(res : Response) : Response {
                   return {
                     status_code = res.status_code;
                     headers = res.headers;
                     body = res.body;
                     streaming_strategy = res.streaming_strategy;
-                    cache_strategy = #default;
+                    cache_strategy = res.cache_strategy;
                   };
-                },
-                ? #default,
+                }
               ),
             );
-            return response;
+            return await response;
           },
         );
       } else {
         registerRequest(
           method,
           path,
-          func(request : Request) : Response {
+          func(request : Request) : async Response {
             var response = handler(
               request,
               ResponseClass(
@@ -312,29 +297,28 @@ module {
                     streaming_strategy = res.streaming_strategy;
                     cache_strategy = #noCache;
                   };
-                },
-                ? #noCache,
+                }
               ),
             );
-            return response;
+            return await response;
           },
         );
       };
     };
 
-    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("GET", path, handler);
     };
 
-    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("POST", path, handler);
     };
 
-    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("PUT", path, handler);
     };
 
-    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> Response) {
+    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
       registerRequestWithHandler("DELETE", path, handler);
     };
 
@@ -414,10 +398,10 @@ module {
       };
     };
 
-    public func http_request_update(request : HttpRequest) : HttpResponse {
+    public func http_request_update(request : HttpRequest) : async HttpResponse {
       // Application logic to process the request
       let req = HttpParser.parse(request);
-      let response = process_request(req);
+      let response = await process_request(req);
       let formattedResponse = {
         status_code = response.status_code;
         headers = response.headers;
@@ -425,6 +409,8 @@ module {
         streaming_strategy = response.streaming_strategy;
         upgrade = null;
       };
+
+      Debug.print("cache strategy: " # debug_show response.cache_strategy);
 
       // expiry can be null to use the default expiry
       if (response.status_code == 200) {
@@ -537,7 +523,7 @@ module {
     };
   };
 
-  public class ResponseClass(cb : (Response) -> Response, overrideCacheStrategy : ?CacheStrategy) {
+  public class ResponseClass(cb : (Response) -> Response) {
 
     public func send(response : Response) : Response {
       cb(response);
@@ -550,20 +536,12 @@ module {
         cache_strategy : CacheStrategy;
       }
     ) : Response {
-      let cache_strategy = switch (overrideCacheStrategy) {
-        case (?cacheStrategy) {
-          cacheStrategy;
-        };
-        case null {
-          response.cache_strategy;
-        };
-      };
       cb({
         status_code = response.status_code;
         headers = [("content-type", "application/json")];
         body = Text.encodeUtf8(response.body);
         streaming_strategy = null;
-        cache_strategy = cache_strategy;
+        cache_strategy = response.cache_strategy;
       });
     };
   };

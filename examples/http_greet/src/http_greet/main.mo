@@ -20,7 +20,7 @@ shared ({ caller = creator }) actor class () {
 
   server.post(
     "/greet",
-    func(req : Request, res : ResponseClass) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       let parsedName = req.url.queryObj.get("name");
       var name = "";
       switch parsedName {
@@ -42,7 +42,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/foo",
-    func(req : Request, res : ResponseClass) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 200;
         headers = [("Content-Type", "text/html")];
@@ -175,12 +175,12 @@ shared ({ caller = creator }) actor class () {
     server.http_request(req);
   };
   public func http_request_update(req : HttpRequest) : async HttpResponse {
-    server.http_request_update(req);
+    await server.http_request_update(req);
   };
 
-  /*
-     * upgrade hooks
-     */
+  /**
+    * upgrade hooks
+    */
   system func preupgrade() {
     serializedEntries := server.entries();
   };

@@ -1,10 +1,21 @@
 import { expect, test, describe, afterAll } from "vitest";
 import fetch from "isomorphic-fetch";
-import canisterIds from "../.dfx/local/canister_ids.json";
-const helloCanisterId = canisterIds.test.local;
+// import canisterIds from "../.dfx/local/canister_ids.json";
+import mainnetIds from "../canister_ids.json";
 
 const express = require("express");
 const app = express();
+
+// const helloCanisterId = canisterIds.test.local;
+const helloCanisterId = mainnetIds.test.ic;
+console.log(`canisterId: ${helloCanisterId}`);
+
+function createUrl(path) {
+  // const url = new URL(path, `http://127.0.0.1:4943`);
+  // url.searchParams.set(`canisterId`, helloCanisterId);
+  const url = new URL(path, `https://${helloCanisterId}.icp0.io`);
+  return url;
+}
 
 app.get(`/hi`, (req, res) => {
   res.send(`hi`);
@@ -30,7 +41,7 @@ const server = app.listen(4999);
 
 const awaitJson = async (url, options) => {
   const response = await fetch(url, options);
-  const json = await response.json();
+  const json = await response.text();
   return json;
 };
 
@@ -41,50 +52,38 @@ const awaitText = async (url, options) => {
 };
 
 test(`should handle a basic greeting`, async () => {
-  const text = await awaitText(
-    `http://127.0.0.1:4943/hi?canisterId=${helloCanisterId}`
-  );
+  const text = await awaitText(createUrl(`/hi`));
 
   expect(text).toBe(`hi`);
 });
 
 test(`should serve html`, async () => {
-  const text = await awaitText(
-    `http://127.0.0.1:4943/?canisterId=${helloCanisterId}`
-  );
+  const text = await awaitText(createUrl(`/`));
   expect(text).toMatchSnapshot();
 });
 
 describe(`headers`, () => {
   test(`plaintext`, async () => {
-    const response = await fetch(
-      `http://127.0.0.1:4943/hi?canisterId=${helloCanisterId}`
-    );
+    const response = await fetch(createUrl(`/hi`));
     expect(response.headers.get(`content-type`)).toBe(`text/plain`);
   });
 
-  test.skip(`json`, async () => {
-    const response = await fetch(
-      `http://127.0.0.1:4943/json?canisterId=${helloCanisterId}`
-    );
+  test(`json`, async () => {
+    const response = await fetch(createUrl(`/json`));
     expect(response.headers.get(`content-type`)).toBe(`application/json`);
   });
 
   test(`html`, async () => {
-    const response = await fetch(
-      `http://127.0.0.1:4943/?canisterId=${helloCanisterId}`
-    );
+    const response = await fetch(createUrl(`/`));
     expect(response.headers.get(`content-type`)).toBe(`text/html`);
   });
 
-  test.skip(`404`, async () => {
-    const response = await fetch(
-      `http://127.0.0.1:4943/404?canisterId=${helloCanisterId}`
-    );
+  test(`404`, async () => {
+    const response = await fetch(createUrl(`/404`));
     expect(response.headers.get(`content-type`)).toBe(`text/plain`);
 
     const text = await response.text();
-    expect(text).toBe(`404`);
+    expect(text).toBe(`Not found`);
 
     expect(response.status).toBe(404);
   });
@@ -93,33 +92,25 @@ describe(`headers`, () => {
 describe(`compare with express`, () => {
   test(`should handle a basic greeting`, async () => {
     const text = await awaitText(`http://127.0.0.1:4999/hi`);
-    const canisterText = await awaitText(
-      `http://127.0.0.1:4943/hi?canisterId=${helloCanisterId}`
-    );
+    const canisterText = await awaitText(createUrl(`/hi`));
     expect(text).toBe(canisterText);
   });
 
   test(`should serve json`, async () => {
     const json = await awaitJson(`http://127.0.0.1:4999/json`);
-    const canisterJson = await awaitJson(
-      `http://127.0.0.1:4943/json?canisterId=${helloCanisterId}`
-    );
+    const canisterJson = await awaitJson(createUrl(`/json`));
     expect(json).toEqual(canisterJson);
   });
 
   test(`should serve html`, async () => {
     const text = await awaitText(`http://127.0.0.1:4999/`);
-    const canisterText = await awaitText(
-      `http://127.0.0.1:4943/?canisterId=${helloCanisterId}`
-    );
+    const canisterText = await awaitText(createUrl(`/`));
     expect(text).toBe(canisterText);
   });
 
   test(`should serve 404`, async () => {
     const response = await fetch(`http://127.0.0.1:4999/404`);
-    const canisterResponse = await fetch(
-      `http://127.0.0.1:4943/404?canisterId=${helloCanisterId}`
-    );
+    const canisterResponse = await fetch(createUrl(`/404`));
 
     expect(response.status).toBe(canisterResponse.status);
     expect(response.statusText).toBe(canisterResponse.statusText);
@@ -127,22 +118,18 @@ describe(`compare with express`, () => {
   });
 
   test(`should handle query params`, async () => {
-    const json = await awaitJson(
-      `http://127.0.0.1:4999/queryParams?canisterId=${helloCanisterId}&foo=bar`
-    );
-    const canisterJson = await awaitJson(
-      `http://127.0.0.1:4943/queryParams?canisterId=${helloCanisterId}&foo=bar`
-    );
+    const json = await awaitJson(`http://127.0.0.1:4999/queryParams?foo=bar`);
+    const canisterJson = await awaitJson(createUrl(`/queryParams?foo=bar`));
     expect(json).toEqual(canisterJson);
 
     const json2 = await awaitJson(
-      `http://127.0.0.1:4999/queryParams?canisterId=${helloCanisterId}&foo=bar&baz=qux`
+      `http://127.0.0.1:4999/queryParams?foo=bar&baz=qux`
     );
     const canisterJson2 = await awaitJson(
-      `http://127.0.0.1:4943/queryParams?canisterId=${helloCanisterId}&foo=bar&baz=qux`
+      `https://${helloCanisterId}.icp0.io/queryParams?foo=bar&baz=qux`
     );
     expect(json2).toEqual(canisterJson2);
-  });
+  }, 10_000);
 });
 
 afterAll(() => {

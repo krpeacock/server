@@ -16,19 +16,19 @@ import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 
 shared ({ caller = creator }) actor class () {
+  type Request = Server.Request;
   type Response = Server.Response;
   type HttpRequest = Server.HttpRequest;
   type HttpResponse = Server.HttpResponse;
+  type ResponseClass = Server.ResponseClass;
 
-  stable var cacheStorage : Server.SerializedEntries = ([], [], [creator]);
+  stable var serializedEntries : Server.SerializedEntries = ([], [], [creator]);
 
-  var server = Server.Server({
-    serializedEntries = cacheStorage;
-  });
+  var server = Server.Server({ serializedEntries });
 
   server.get(
     "/",
-    func(req, res) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 200;
         headers = [("Content-Type", "text/html")];
@@ -44,7 +44,7 @@ shared ({ caller = creator }) actor class () {
   // Cached endpoint
   server.get(
     "/hi",
-    func(req, res) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       Debug.print("hi");
       res.send({
         headers = [("Content-Type", "text/plain")];
@@ -58,10 +58,10 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/json",
-    func(req, res) : Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.json({
         status_code = 200;
-        body = "{ \"hello\": \"world\" }";
+        body = "{\"hello\":\"world\"}";
         cache_strategy = #noCache;
       });
     },
@@ -69,10 +69,10 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/404",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       res.send({
         status_code = 404;
-        headers = [];
+        headers = [("Content-Type", "text/plain")];
         body = Text.encodeUtf8("Not found");
         streaming_strategy = null;
         cache_strategy = #noCache;
@@ -89,7 +89,7 @@ shared ({ caller = creator }) actor class () {
   // Dynamic endpoint
   server.get(
     "/queryParams",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       let obj = req.url.queryObj;
       let keys = Iter.fromArray(obj.keys);
 
@@ -100,12 +100,12 @@ shared ({ caller = creator }) actor class () {
         switch value {
           case null {};
           case (?value) {
-            body := body # "\"" # key # "\": \"" # value # "\", ";
+            body := body # "\"" # key # "\":\"" # value # "\",";
           };
         };
       };
       // trim the last comma
-      body := Text.trimEnd(body, #text ", ");
+      body := Text.trimEnd(body, #text ",");
 
       body := body # "}";
 
@@ -125,13 +125,13 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/cats",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       let catEntries = cats.entries();
 
       var catJson = "{ ";
       for (entry in catEntries) {
         let (id, cat) = entry;
-        catJson := catJson # "\"" # id # "\": { \"name\": \"" # cat.name # "\", \"age\": " # Nat.toText(cat.age) # " }, ";
+        catJson := catJson # "\"" # id # "\": {\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}, ";
       };
       catJson := Text.trimEnd(catJson, #text ", ");
       catJson := catJson # " }";
@@ -172,7 +172,7 @@ shared ({ caller = creator }) actor class () {
 
   server.post(
     "/cats",
-    func(req, res) : Response {
+    func(req: Request, res: ResponseClass) : async Response {
       let body = req.body;
       switch body {
         case null {
@@ -219,7 +219,7 @@ shared ({ caller = creator }) actor class () {
     server.http_request(req);
   };
   public func http_request_update(req : HttpRequest) : async HttpResponse {
-    server.http_request_update(req);
+    await server.http_request_update(req);
   };
 
   public func invalidate_cache() : async () {
@@ -227,7 +227,7 @@ shared ({ caller = creator }) actor class () {
   };
 
   system func preupgrade() {
-    cacheStorage := server.entries();
+    serializedEntries := server.entries();
   };
 
   system func postupgrade() {
