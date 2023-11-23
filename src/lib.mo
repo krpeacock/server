@@ -14,6 +14,7 @@ import Time "mo:base/Time";
 import Option "mo:base/Option";
 import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
+import Nat "mo:base/Nat";
 
 module {
   // Public Types
@@ -129,22 +130,33 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    private func process_request(req : Request) : async Response {
-      switch (req.method) {
+    
+
+  private func process_request(req : Request) : async Response {
+      var request = req;
+      
+      // Modify route and request if any parameters
+      let hasIds = hasRouteParameters(req.url.path.original);
+      switch (hasIds) {
+        case (true) { request := newRouteRequest(req); };
+        case (false) { request := req; }
+      };
+
+      switch (request.method) {
         case "GET" {
-          switch (getRequests.get(req.url.path.original)) {
+          switch (getRequests.get(request.url.path.original)) {
             case (?getFunction) {
-              await getFunction(req);
+              await getFunction(request);
             };
             case null {
-              staticFallback(req);
+              staticFallback(request);
             };
           };
         };
         case "POST" {
-          switch (postRequests.get(req.url.path.original)) {
+          switch (postRequests.get(request.url.path.original)) {
             case (?postFunction) {
-              await postFunction(req);
+              await postFunction(request);
             };
             case null {
               missingResponse;
@@ -152,9 +164,9 @@ module {
           };
         };
         case "PUT" {
-          switch (putRequests.get(req.url.path.original)) {
+          switch (putRequests.get(request.url.path.original)) {
             case (?putFunction) {
-              await putFunction(req);
+              await putFunction(request);
             };
             case null {
               missingResponse;
@@ -162,9 +174,9 @@ module {
           };
         };
         case "DELETE" {
-          switch (deleteRequests.get(req.url.path.original)) {
+          switch (deleteRequests.get(request.url.path.original)) {
             case (?deleteFunction) {
-              await deleteFunction(req);
+              await deleteFunction(request);
             };
             case null {
               missingResponse;
@@ -187,9 +199,6 @@ module {
       };
       var path : Text = req.url.path.original;
 
-      if (path == "/") {
-        path := "/index.html";
-      };
 
       let response = assets.http_request({
         method = req.method;
@@ -375,8 +384,8 @@ module {
     public func http_request(request : HttpRequest) : HttpResponse {
       let req = HttpParser.parse(request);
       var cachedResponse = cache.get(request);
-      switch cachedResponse {
-        case (?response) {
+      switch (cachedResponse, request.method) {
+        case (?response, "GET") {
           {
             status_code = response.status_code;
             headers = joinArrays(response.headers, [cache.certificationHeader(request)]);
@@ -385,7 +394,7 @@ module {
             upgrade = null;
           };
         };
-        case null {
+        case _ {
           return {
             status_code = 404;
             headers = [];
@@ -410,7 +419,6 @@ module {
         upgrade = null;
       };
 
-      Debug.print("cache strategy: " # debug_show response.cache_strategy);
 
       // expiry can be null to use the default expiry
       if (response.status_code == 200) {
@@ -521,6 +529,124 @@ module {
       };
       Buffer.toArray(buf);
     };
+  };
+
+  public func retrieveHeaderParameters(req : Request ) : [Nat] {
+    var a : [Nat] = [];
+    for (key in Iter.range(0,Array.size(req.headers.original)-1)) {
+      if (Text.startsWith(req.headers.original[key].0, #text "param")){
+        switch (Nat.fromText(req.headers.original[key].1)) {
+          case (?value) {
+            a := Array.append(a,[value]);
+          };
+          case null {}
+        }
+      }
+    };
+    a
+  };
+
+
+  public func hasRouteParameters(url : Text) : Bool {
+    let hasParam = getRouteParameters(url);
+    switch (hasParam) {
+        case (v) {
+            return true;
+        };
+        case (_) {}
+    };
+    return false
+  };
+
+
+  func getNumeric(v : Text) : Int { 
+    switch ( Nat.fromText(v)) {
+      case (?val) { return val };
+      case (_) { return -1 }
+    };
+  };
+
+
+  public func getRouteParameters(value : Text) : [Int] {
+    let tokens = Text.tokens(value, #predicate (func (c) { c == '/' }));
+   
+    var v : Int = 0;
+    var z : [Int] = [];
+    var first = true;
+   
+    for (token in tokens) {
+      if first { // if 404, we want it to be a route
+        first := false
+      } else {
+        v := getNumeric(token);
+        if (v >=0) {
+            z := Array.append(z,[v]);
+        }
+      }
+    };
+    z
+  };
+
+
+  private func newRoutePath(value : Text) : Text {
+    let tokens = Text.tokens(value, #predicate (func(c) { c == '/'}));
+    var newPath = "";
+   
+    switch (tokens) {
+      case (t) {
+        var v : Int = -1;
+        for (token in tokens) {
+          v := getNumeric(token);
+          if (v < 0) {
+            newPath := newPath # "/" # token
+          } else {
+            newPath := newPath # "/:id"
+          }
+        }
+      };
+      case (_) {};
+    };
+    newPath
+  };
+
+
+  public func newRouteRequest(req : Request) : Request {
+    var b = req.headers.original;
+    var z : [Int] = getRouteParameters(req.url.path.original);
+    if (Array.size(z) > 0) {
+      for (i in Iter.range(0,Array.size(z)-1)){
+        switch (z[i]) {
+          case (v) {
+            b := Array.append(b,[("param" # Int.toText(i+1), Int.toText(v) )] );
+          };
+          case (_) {};
+        }
+      };
+
+      let c = Array.append(req.headers.original,b);
+      let a = newRoutePath(req.url.path.original);
+
+      return {
+        method = req.method; 
+        body = req.body;
+        url =  {
+          anchor =req.url.anchor;
+          host = req.url.host;
+          original = req.url.original;
+          path = { array = req.url.path.array; original = a};
+          port = req.url.port;
+          protocol = req.url.protocol;
+          queryObj = req.url.queryObj;
+        };
+        headers = { 
+          get = req.headers.get;
+          keys = req.headers.keys;
+          original = c;
+          trieMap = req.headers.trieMap;
+        }
+      }
+    };
+    return req
   };
 
   public class ResponseClass(cb : (Response) -> Response) {
