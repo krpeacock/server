@@ -1,0 +1,17 @@
+{
+    "canisters": {
+        "seo": {
+            "type": "motoko",
+            "main": "src/main.mo",
+            "declarations": {
+                "output": "declarations",
+                "node_compatibility": true
+            }
+        }
+    },
+    "defaults": {
+        "build": {
+            "packtool": "npm run --silent sources"
+        }
+    }
+}

@@ -21,7 +21,7 @@
     "@dfinity/identity": "^0.15.5",
     "@dfinity/principal": "^0.15.5",
     "express": "^4.18.2",
-    "ic-mops": "^0.34.2",
+    "ic-mops": "^0.34.4",
     "isomorphic-fetch": "^3.0.0",
     "mo-dev": "^0.11.2",
     "prettier": "^2.8.7",
