@@ -13,6 +13,5 @@
     "build": {
       "packtool": "npm run --silent sources"
     }
-  },
-  "dfx": "0.15.1"
+  }
 }
