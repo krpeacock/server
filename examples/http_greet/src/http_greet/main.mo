@@ -107,6 +107,20 @@ shared ({ caller = creator }) actor class () {
     });
   };
 
+  public shared ({ caller }) func create_chunk(
+    arg : {
+      batch_id : T.BatchId;
+      content : Blob;
+    }
+  ) : async ({
+    chunk_id : T.ChunkId;
+  }) {
+    assets.create_chunk({
+      caller;
+      arg;
+    });
+  };
+
   public shared ({ caller }) func commit_batch(args : T.CommitBatchArguments) : async () {
     assets.commit_batch({
       caller;
