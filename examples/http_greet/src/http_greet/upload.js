@@ -13,10 +13,10 @@ const { Ed25519KeyIdentity } = require("@dfinity/identity");
 const { AssetManager } = require("@dfinity/assets");
 const Ids = require("../../.dfx/local/canister_ids.json");
 
-const HOST = `http://127.0.0.1:4943`;
-// const HOST = "https://icp-api.io";
-const canisterId = Ids["http_greet"]["local"];
-// const canisterId = "qg33c-4aaaa-aaaab-qaica-cai";
+// const HOST = `http://127.0.0.1:4943`;
+const HOST = "https://icp-api.io";
+// const canisterId = Ids["http_greet"]["local"];
+const canisterId = "qg33c-4aaaa-aaaab-qaica-cai";
 
 const encoder = new TextEncoder();
 
