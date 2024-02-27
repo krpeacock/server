@@ -36,17 +36,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install dfx
-        run: sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+      - name: Install DFX
+        uses: dfinity/setup-dfx@main
       
-      # - name: Start dfx
-      #   run: dfx start --background --clean --host 127.0.0.1:4943
+      - name: Start dfx
+        run: dfx start --background --clean --host 127.0.0.1:4943
 
       - name: Run e2e tests
         run: npm run test:e2e
 
-      # - name: Clean Up
-      #   run: killall dfx replica
+      - name: Clean Up
+        run: killall dfx replica
 
   aggregate:
     name: e2e:required
