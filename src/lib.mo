@@ -75,9 +75,6 @@ module {
     let (cacheEntries, stableAssets, cacheAuthorized) = serializedEntries;
 
     public var authorized = cacheAuthorized;
-    private func setAuthorized(a : [Principal]) {
-      authorized := a;
-    };
 
     let missingResponse : Response = {
       status_code = 404;
@@ -95,7 +92,7 @@ module {
         Iter.fromArray(cacheEntries),
         (
           func(entry : (HttpRequest, (HttpResponse, Nat))) : Bool {
-            let (request, (response, expiry)) = entry;
+            let (_, (_, expiry)) = entry;
             if (expiry > Int.abs(Time.now())) {
               true;
             } else {
@@ -177,6 +174,8 @@ module {
       };
     };
 
+
+
     private func staticFallback(req : Request) : Response {
       var b : Blob = Blob.fromArray([]);
       switch (req.body) {
@@ -198,11 +197,9 @@ module {
         body = b;
       });
 
-      let gotAsset = assets.retrieve(path);
-
       switch (response.streaming_strategy) {
 
-        case (?strategy) {
+        case (?_) {
           // TODO - implement streaming
           missingResponse;
         };
@@ -324,7 +321,7 @@ module {
 
     public func entries() : SerializedEntries {
       let serializedAssets = assets.entries();
-      let (stableAssets, stableAuthorized) = serializedAssets;
+      let (stableAssets, _) = serializedAssets;
       (cache.entries(), stableAssets, authorized);
     };
 
@@ -373,7 +370,6 @@ module {
     };
 
     public func http_request(request : HttpRequest) : HttpResponse {
-      let req = HttpParser.parse(request);
       var cachedResponse = cache.get(request);
       switch cachedResponse {
         case (?response) {
@@ -494,7 +490,7 @@ module {
       arg : StoreProps;
       caller : Principal;
     }) : () {
-      let result = assets.store({
+      assets.store({
         caller;
         arg;
       });
