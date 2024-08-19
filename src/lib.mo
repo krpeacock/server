@@ -8,10 +8,9 @@ import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Hash "mo:base/Hash";
-import HttpParser "mo:http-parser.mo";
+import HttpParser "mo:http-parser";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
-import Option "mo:base/Option";
 import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
 

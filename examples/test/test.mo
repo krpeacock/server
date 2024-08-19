@@ -14,6 +14,7 @@ import Time "mo:base/Time";
 import Trie "mo:base/Trie";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
+import Array "mo:base/Array";
 
 shared ({ caller = creator }) actor class () {
   type Request = Server.Request;
@@ -69,7 +70,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/404",
-    func(req: Request, res: ResponseClass) : async Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 404;
         headers = [("Content-Type", "text/plain")];
@@ -89,7 +90,7 @@ shared ({ caller = creator }) actor class () {
   // Dynamic endpoint
   server.get(
     "/queryParams",
-    func(req: Request, res: ResponseClass) : async Response {
+    func(req : Request, res : ResponseClass) : async Response {
       let obj = req.url.queryObj;
       let keys = Iter.fromArray(obj.keys);
 
@@ -121,26 +122,64 @@ shared ({ caller = creator }) actor class () {
     name : Text;
     age : Nat;
   };
-  var cats = HM.HashMap<Text, Cat>(0, Text.equal, Text.hash);
+  var cats = [
+    {
+      name = "Sardine";
+      age = 7;
+    },
+    {
+      name = "Olive";
+      age = 4;
+    },
+  ];
 
   server.get(
     "/cats",
-    func(req: Request, res: ResponseClass) : async Response {
-      let catEntries = cats.entries();
-
-      var catJson = "{ ";
-      for (entry in catEntries) {
-        let (id, cat) = entry;
-        catJson := catJson # "\"" # id # "\": {\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}, ";
+    func(req : Request, res : ResponseClass) : async Response {
+      var catJson = "[";
+      for (cat in Iter.fromArray(cats)) {
+        catJson := catJson # "{\"name\":\"" # cat.name # "\",\"age\":" # Nat.toText(cat.age) # "},";
       };
-      catJson := Text.trimEnd(catJson, #text ", ");
-      catJson := catJson # " }";
+      catJson := Text.trimEnd(catJson, #text ",");
+      catJson := catJson # "]";
 
       res.json({
         status_code = 200;
         body = catJson;
         cache_strategy = #noCache;
       });
+    },
+  );
+
+  server.get(
+    "/cats/:name",
+    func(req : Request, res : ResponseClass) : async Response {
+      let name = req.url.path.array[1];
+
+      let cat = Array.find(
+        cats,
+        func(cat : Cat) : Bool {
+          cat.name == name;
+        },
+      );
+      switch cat {
+        case null {
+          res.send({
+            status_code = 404;
+            headers = [];
+            body = Text.encodeUtf8("Cat not found");
+            streaming_strategy = null;
+            cache_strategy = #noCache;
+          });
+        };
+        case (?cat) {
+          res.json({
+            status_code = 200;
+            body = "{\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}";
+            cache_strategy = #noCache;
+          });
+        };
+      };
     },
   );
 
@@ -156,23 +195,17 @@ shared ({ caller = creator }) actor class () {
   };
   */
   func processCat(data : Text) : ?Cat {
-    let blob = serdeJson.fromText(data);
-    from_candid (blob);
+    let #ok(blob) = serdeJson.fromText(data, null);
+    let cat : ?Cat = from_candid (blob);
   };
 
   public func getCats() : async [Cat] {
-    let catEntries = cats.entries();
-    var catList = Buffer.fromArray<Cat>([]);
-    for (entry in catEntries) {
-      let (id, cat) = entry;
-      catList.add(cat);
-    };
-    Buffer.toArray(catList);
+    cats;
   };
 
   server.post(
     "/cats",
-    func(req: Request, res: ResponseClass) : async Response {
+    func(req : Request, res : ResponseClass) : async Response {
       let body = req.body;
       switch body {
         case null {
@@ -201,7 +234,9 @@ shared ({ caller = creator }) actor class () {
               });
             };
             case (?cat) {
-              cats.put(cat.name, cat);
+              let buf : Buffer.Buffer<Cat> = Buffer.fromArray(cats);
+              buf.add(cat);
+              cats := Buffer.toArray(buf);
               res.json({
                 status_code = 200;
                 body = "ok";
