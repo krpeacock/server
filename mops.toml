@@ -16,8 +16,8 @@ license = "Apache-2.0"
 
 [dependencies]
 certified-cache = "0.3.0"
-serde = "2.2.0"
 test = "2.0.0"
 base = "0.12.1"
 assets = "0.2.2"
 http-parser = "0.3.1"
+serde = "3.1.0"

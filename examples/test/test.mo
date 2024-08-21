@@ -1,17 +1,8 @@
 import Server "../../src/lib";
-import Blob "mo:base/Blob";
-import CertifiedCache "mo:certified-cache";
 import Debug "mo:base/Debug";
-import Hash "mo:base/Hash";
-import HM "mo:base/HashMap";
-import HashMap "mo:StableHashMap/FunctionalStableHashMap";
-import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import serdeJson "mo:serde/JSON";
-import Option "mo:base-0.7.3/Option";
 import Text "mo:base/Text";
-import Time "mo:base/Time";
-import Trie "mo:base/Trie";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 import Array "mo:base/Array";
@@ -29,7 +20,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/",
-    func(req : Request, res : ResponseClass) : async Response {
+    func(_ : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 200;
         headers = [("Content-Type", "text/html")];
@@ -37,7 +28,7 @@ shared ({ caller = creator }) actor class () {
           "<html><body><h1>hello world</h1></body></html>"
         );
         streaming_strategy = null;
-        cache_strategy = #default;
+        cache_strategy = #noCache;
       });
     },
   );
@@ -45,21 +36,21 @@ shared ({ caller = creator }) actor class () {
   // Cached endpoint
   server.get(
     "/hi",
-    func(req : Request, res : ResponseClass) : async Response {
+    func(_ : Request, res : ResponseClass) : async Response {
       Debug.print("hi");
       res.send({
         headers = [("Content-Type", "text/plain")];
         status_code = 200;
         body = Text.encodeUtf8("hi");
         streaming_strategy = null;
-        cache_strategy = #default;
+        cache_strategy = #noCache;
       });
     },
   );
 
   server.get(
     "/json",
-    func(req : Request, res : ResponseClass) : async Response {
+    func(_ : Request, res : ResponseClass) : async Response {
       res.json({
         status_code = 200;
         body = "{\"hello\":\"world\"}";
@@ -70,7 +61,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/404",
-    func(req : Request, res : ResponseClass) : async Response {
+    func(_ : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 404;
         headers = [("Content-Type", "text/plain")];
@@ -139,13 +130,17 @@ shared ({ caller = creator }) actor class () {
     },
   ];
 
+  func displayCat(cat : Cat) : Text {
+    "{\"name\":\"" # cat.name # "\",\"age\":" # Nat.toText(cat.age) # "}";
+  };
+
   server.get(
     "/cats",
-    func(req : Request, res : ResponseClass) : async Response {
+    func(_ : Request, res : ResponseClass) : async Response {
       Debug.print("cats endpoint");
       var catJson = "[";
       for (cat in Iter.fromArray(cats)) {
-        catJson := catJson # "{\"name\":\"" # cat.name # "\",\"age\":" # Nat.toText(cat.age) # "},";
+        catJson := catJson # displayCat(cat) # ",";
       };
       catJson := Text.trimEnd(catJson, #text ",");
       catJson := catJson # "]";
@@ -192,8 +187,9 @@ shared ({ caller = creator }) actor class () {
                   Text.toLowercase(cat.name) == Text.toLowercase(n);
                 },
               );
-
-              Debug.print("found cat: " # debug_show cat);
+              ignore do ? {
+                Debug.print("found cat: " # displayCat(cat!));
+              };
               switch cat {
                 case null {
                   res.send({
@@ -207,7 +203,7 @@ shared ({ caller = creator }) actor class () {
                 case (?cat) {
                   res.json({
                     status_code = 200;
-                    body = "{\"name\":\"" # cat.name # "\",\"age\":" # Nat.toText(cat.age) # "}";
+                    body = displayCat(cat);
                     cache_strategy = #noCache;
                   });
                 };
@@ -231,7 +227,7 @@ shared ({ caller = creator }) actor class () {
   };
   */
   func processCat(data : Text) : ?Cat {
-    let #ok(blob) = serdeJson.fromText(data, null);
+    let #ok(blob) = serdeJson.fromText(data, null) else return null;
     let cat : ?Cat = from_candid (blob);
   };
 
@@ -259,7 +255,7 @@ shared ({ caller = creator }) actor class () {
           Debug.print(bodyText);
           let cat = processCat(bodyText);
           switch (cat) {
-            case null {
+            case (null) {
               Debug.print("cat not parsed");
               res.send({
                 status_code = 400;
