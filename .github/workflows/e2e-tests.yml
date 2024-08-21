@@ -40,6 +40,9 @@ jobs:
       - name: Start dfx
         run: dfx start --background --clean --host 127.0.0.1:4943
 
+      - name: Deploy canister
+        run: dfx deploy test
+
       - name: Run e2e tests
         run: npm run test:e2e
 
