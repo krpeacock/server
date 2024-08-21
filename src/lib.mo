@@ -297,18 +297,19 @@ module {
 
     // Insert request handlers into maps based on method
     public func registerRequest(method : Text, url : Text, function : HttpFunction) {
+      let lowercaseUrl = Text.toLowercase(url);
       switch (method) {
         case "GET" {
-          getRequests.put(url, function);
+          getRequests.put(lowercaseUrl, function);
         };
         case "POST" {
-          postRequests.put(url, function);
+          postRequests.put(lowercaseUrl, function);
         };
         case "PUT" {
-          putRequests.put(url, function);
+          putRequests.put(lowercaseUrl, function);
         };
         case "DELETE" {
-          deleteRequests.put(url, function);
+          deleteRequests.put(lowercaseUrl, function);
         };
         case _ {};
       };

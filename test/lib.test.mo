@@ -1,6 +1,8 @@
 import Utils "../src/Utils";
 import Test "mo:test";
 import HttpParser "mo:http-parser";
+import TrieMap "mo:base/TrieMap";
+import Text "mo:base/Text";
 let test = Test.test;
 let suite = Test.suite;
 let expect = Test.expect;
@@ -78,6 +80,17 @@ suite(
 			let result = Utils.parsePathParams(pattern, path);
 
 			expect.result<Utils.PathParams, Text>(result, Utils.showPathParamsResult, Utils.pathParamsResultEqual).equal(#err("Path does not match the pattern. Expected: foo, got: cat"));
+		});
+
+		test("pattern match with query params", func() {
+			let pattern = "/foo/:bar";
+			let path = "/foo/bar?baz=qux";
+			let result = Utils.parsePathParams(pattern, path);
+
+			let expected = TrieMap.TrieMap<Text, Text>(Text.equal, Text.hash);
+			expected.put("bar", "bar");
+
+			expect.result<Utils.PathParams, Text>(result, Utils.showPathParamsResult, Utils.pathParamsResultEqual).equal(#ok(expected));
 		});
 
 

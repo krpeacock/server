@@ -5,6 +5,5 @@ description = ""
 repository = ""
 
 [dependencies]
-server = "0.1.0"
 certified-cache = "0.2.0"
 assets = "0.2.0"

@@ -58,8 +58,26 @@ module {
             if (map.get(name) != null) {
               return #err("duplicate parameter name: " # name);
             };
+
+            var part = pathParts[i];
+            // remove any query parameters
+            switch (Text.split(part, #text "?").next()) {
+              case (?p) {
+                part := p;
+              };
+              case null {};
+            };
+
+            // remove any anchor
+            switch (Text.split(part, #text "#").next()) {
+              case (?p) {
+                part := p;
+              };
+              case null {};
+            };
+
             // Add the param to the map
-            map.put(name, pathParts[i]);
+            map.put(name, part);
           };
         };
       } else {
@@ -109,23 +127,22 @@ module {
     };
   };
 
-  public func simplifyRoute(url: HttpParser.URL): (Text, Text) {
+  public func simplifyRoute(url : HttpParser.URL) : (Text, Text) {
     let parts = Iter.fromArray(url.path.array);
-    let simplified = 
-      Iter.filter(
-        parts,
-        func(part: Text): Bool {
-          return Text.size(part) > 0;
-        },
-      );
-    let baseRoute: Text = "/" # Text.join("/", simplified);
+    let simplified = Iter.filter(
+      parts,
+      func(part : Text) : Bool {
+        return Text.size(part) > 0;
+      },
+    );
+    let baseRoute : Text = "/" # Text.join("/", simplified);
     var fullRoute = baseRoute;
 
-    if(url.queryObj.original.size() > 0) {
+    if (url.queryObj.original.size() > 0) {
       fullRoute := fullRoute # "?" # url.queryObj.original;
     };
 
-    if(url.anchor.size() > 0) {
+    if (url.anchor.size() > 0) {
       fullRoute := fullRoute # "#" # url.anchor;
     };
 

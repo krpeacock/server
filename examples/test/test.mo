@@ -92,6 +92,12 @@ shared ({ caller = creator }) actor class () {
     "/queryParams",
     func(req : Request, res : ResponseClass) : async Response {
       let obj = req.url.queryObj;
+      Debug.print(
+        debug_show {
+          keys = obj.keys;
+          original = obj.original;
+        }
+      );
       let keys = Iter.fromArray(obj.keys);
 
       var body = "{";
@@ -156,7 +162,7 @@ shared ({ caller = creator }) actor class () {
     "/cats/:name",
     func(req : Request, res : ResponseClass) : async Response {
       Debug.print("cats/:name endpoint");
-      switch(req.params){
+      switch (req.params) {
         case null {
           res.send({
             status_code = 400;
@@ -179,7 +185,7 @@ shared ({ caller = creator }) actor class () {
                 cache_strategy = #noCache;
               });
             };
-            case (? n) {
+            case (?n) {
               let cat = Array.find(
                 cats,
                 func(cat : Cat) : Bool {
@@ -201,7 +207,7 @@ shared ({ caller = creator }) actor class () {
                 case (?cat) {
                   res.json({
                     status_code = 200;
-                    body = "{\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}";
+                    body = "{\"name\":\"" # cat.name # "\",\"age\":" # Nat.toText(cat.age) # "}";
                     cache_strategy = #noCache;
                   });
                 };
@@ -209,7 +215,7 @@ shared ({ caller = creator }) actor class () {
             };
           };
         };
-      }
+      };
     },
   );
 

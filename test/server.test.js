@@ -5,14 +5,14 @@ import mainnetIds from "../canister_ids.json";
 const express = require("express");
 const app = express();
 
-const helloCanisterId = canisterIds.test.local;
-// const helloCanisterId = mainnetIds.test.ic;
+// const helloCanisterId = canisterIds.test.local;
+const helloCanisterId = mainnetIds.test.ic;
 console.log(`canisterId: ${helloCanisterId}`);
 
 function createUrl(path) {
-  const url = new URL(path, `http://127.0.0.1:4943`);
-  url.searchParams.set(`canisterId`, helloCanisterId);
-  // const url = new URL(path, `https://${helloCanisterId}.icp0.io`);
+  // const url = new URL(path, `http://127.0.0.1:4943`);
+  // url.searchParams.set(`canisterId`, helloCanisterId);
+  const url = new URL(path, `https://${helloCanisterId}.icp0.io`);
   return url;
 }
 
@@ -45,14 +45,14 @@ app.get(`/cats`, (req, res) => {
   res.json(cats);
 });
 
-// app.get(`/cats/:name`, (req, res) => {
-//   const cat = cats.find((cat) => cat.name === req.params.name);
-//   if (!cat) {
-//     res.status(404).send(`Not found`);
-//     return;
-//   }
-//   res.json(cat);
-// });
+app.get(`/cats/:name`, (req, res) => {
+  const cat = cats.find((cat) => cat.name === req.params.name);
+  if (!cat) {
+    res.status(404).send(`Not found`);
+    return;
+  }
+  res.json(cat);
+});
 
 const server = app.listen(4999);
 

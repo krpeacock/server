@@ -7,6 +7,14 @@
         "output": "declarations",
         "node_compatibility": true
       }
+    },
+    "http_greet": {
+      "type": "motoko",
+      "main": "examples/http_greet/src/http_greet/main.mo",
+      "declarations": {
+        "output": "declarations",
+        "node_compatibility": true
+      }
     }
   },
   "defaults": {
