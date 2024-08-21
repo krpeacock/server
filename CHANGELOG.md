@@ -8,6 +8,7 @@
     - `GET /hello` and `GET /hello/` are now treated as the same route
     - paths are all processed as lowercase
 - bumps dependencies
+- chore: removes logs
 
 ## 0.3.1
 
