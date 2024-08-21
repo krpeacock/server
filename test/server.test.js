@@ -1,21 +1,30 @@
 import { expect, test, describe, afterAll } from "vitest";
-import fetch from "isomorphic-fetch";
-// import canisterIds from "../.dfx/local/canister_ids.json";
-import mainnetIds from "../canister_ids.json";
+import canisterIds from "../.dfx/local/canister_ids.json";
+// import mainnetIds from "../canister_ids.json";
 
 const express = require("express");
 const app = express();
 
-// const helloCanisterId = canisterIds.test.local;
-const helloCanisterId = mainnetIds.test.ic;
+const helloCanisterId = canisterIds.test.local;
+// const helloCanisterId = mainnetIds.test.ic;
 console.log(`canisterId: ${helloCanisterId}`);
 
-function createUrl(path) {
-  // const url = new URL(path, `http://127.0.0.1:4943`);
-  // url.searchParams.set(`canisterId`, helloCanisterId);
-  const url = new URL(path, `https://${helloCanisterId}.icp0.io`);
+function createUrl(path, params) {
+  const url = new URL(path, `http://127.0.0.1:4943`);
+  url.searchParams.set(`canisterId`, helloCanisterId);
+  if (params) {
+    for (const key in params) {
+      url.searchParams.set(key, params[key]);
+    }
+  }
+  // const url = new URL(path, `https://${helloCanisterId}.icp0.io`);
   return url;
 }
+
+const cats = [
+  { name: "Sardine", age: 7 },
+  { name: "Olive", age: 4 },
+];
 
 app.get(`/hi`, (req, res) => {
   res.send(`hi`);
@@ -37,12 +46,32 @@ app.get(`/queryParams`, (req, res) => {
   res.json(req.query);
 });
 
+app.get(`/cats`, (req, res) => {
+  res.json(cats);
+});
+
+app.get(`/cats/:name`, (req, res) => {
+  const cat = cats.find((cat) => cat.name === req.params.name);
+  if (!cat) {
+    res.status(404).send(`Not found`);
+    return;
+  }
+  res.json(cat);
+});
+
 const server = app.listen(4999);
 
 const awaitJson = async (url, options) => {
   const response = await fetch(url, options);
-  const json = await response.text();
-  return json;
+  const text = await response.text();
+  try {
+    const json = JSON.parse(text);
+    delete json["canisterId"];
+    return JSON.stringify(json);
+  } catch (error) {
+    console.log(error);
+  }
+  return text;
 };
 
 const awaitText = async (url, options) => {
@@ -119,17 +148,36 @@ describe(`compare with express`, () => {
 
   test(`should handle query params`, async () => {
     const json = await awaitJson(`http://127.0.0.1:4999/queryParams?foo=bar`);
-    const canisterJson = await awaitJson(createUrl(`/queryParams?foo=bar`));
+    const canisterJson = await awaitJson(
+      createUrl(`/queryParams`, { foo: "bar" })
+    );
     expect(json).toEqual(canisterJson);
 
     const json2 = await awaitJson(
       `http://127.0.0.1:4999/queryParams?foo=bar&baz=qux`
     );
     const canisterJson2 = await awaitJson(
-      `https://${helloCanisterId}.icp0.io/queryParams?foo=bar&baz=qux`
+      createUrl(`/queryParams`, {
+        foo: "bar",
+        baz: "qux",
+      })
     );
     expect(json2).toEqual(canisterJson2);
   }, 10_000);
+
+  test(`should handle multiple cats`, async () => {
+    const json = await awaitJson(`http://127.0.0.1:4999/cats`);
+    const canisterJson = await awaitJson(createUrl(`/cats`));
+    expect(json).toEqual(canisterJson);
+  });
+
+  test(`should handle a single cat`, async () => {
+    const json = await awaitJson(`http://127.0.0.1:4999/cats/Sardine`);
+    console.log(createUrl(`/cats/Sardine`));
+    const canisterJson = await awaitJson(createUrl(`/cats/Sardine`));
+    console.log(canisterJson);
+    expect(json).toEqual(canisterJson);
+  });
 });
 
 afterAll(() => {
