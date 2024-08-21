@@ -163,15 +163,7 @@ module {
     };
 
     private func handleFunction(map : HashMap.StableHashMap<Text, HttpFunction>, req : Request, fallback : ?((Request) -> Response)) : async Response {
-
-      Debug.print("url: " # debug_show {
-        original = req.url.original;
-        path = req.url.path.array;
-      });
       let (simplifiedBaseRoute, simplifiedFullRoute) = Utils.simplifyRoute(req.url);
-
-      Debug.print("simplifiedBaseRoute: " # simplifiedBaseRoute);
-      Debug.print("simplifiedFullRoute: " # simplifiedFullRoute);
 
       ignore do ? {
         // Check for an exact match, including query parameters
@@ -435,7 +427,6 @@ module {
       var cachedResponse = cache.get(request);
       switch cachedResponse {
         case (?response) {
-          Debug.print("cachedResponse found for: " # request.url);
           {
             status_code = response.status_code;
             headers = joinArrays(response.headers, [cache.certificationHeader(request)]);
@@ -473,8 +464,6 @@ module {
         params = null;
       };
 
-      Debug.print("request url" # debug_show req.url.original);
-
       let response = await process_request(parsedrequest);
 
       let formattedResponse = {
@@ -484,8 +473,6 @@ module {
         streaming_strategy = response.streaming_strategy;
         upgrade = null;
       };
-
-      Debug.print("cache strategy: " # debug_show response.cache_strategy);
 
       // expiry can be null to use the default expiry
       if (response.status_code == 200) {

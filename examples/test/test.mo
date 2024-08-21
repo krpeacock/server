@@ -37,7 +37,6 @@ shared ({ caller = creator }) actor class () {
   server.get(
     "/hi",
     func(_ : Request, res : ResponseClass) : async Response {
-      Debug.print("hi");
       res.send({
         headers = [("Content-Type", "text/plain")];
         status_code = 200;
@@ -83,12 +82,6 @@ shared ({ caller = creator }) actor class () {
     "/queryParams",
     func(req : Request, res : ResponseClass) : async Response {
       let obj = req.url.queryObj;
-      Debug.print(
-        debug_show {
-          keys = obj.keys;
-          original = obj.original;
-        }
-      );
       let keys = Iter.fromArray(obj.keys);
 
       var body = "{";
@@ -137,7 +130,6 @@ shared ({ caller = creator }) actor class () {
   server.get(
     "/cats",
     func(_ : Request, res : ResponseClass) : async Response {
-      Debug.print("cats endpoint");
       var catJson = "[";
       for (cat in Iter.fromArray(cats)) {
         catJson := catJson # displayCat(cat) # ",";
@@ -156,7 +148,6 @@ shared ({ caller = creator }) actor class () {
   server.get(
     "/cats/:name",
     func(req : Request, res : ResponseClass) : async Response {
-      Debug.print("cats/:name endpoint");
       switch (req.params) {
         case null {
           res.send({
@@ -169,7 +160,6 @@ shared ({ caller = creator }) actor class () {
         };
         case (?params) {
           let name = params.get("name");
-          Debug.print("found cat with name: " # debug_show name);
           switch name {
             case null {
               res.send({
@@ -187,9 +177,6 @@ shared ({ caller = creator }) actor class () {
                   Text.toLowercase(cat.name) == Text.toLowercase(n);
                 },
               );
-              ignore do ? {
-                Debug.print("found cat: " # displayCat(cat!));
-              };
               switch cat {
                 case null {
                   res.send({
@@ -252,11 +239,9 @@ shared ({ caller = creator }) actor class () {
         case (?body) {
 
           let bodyText = body.text();
-          Debug.print(bodyText);
           let cat = processCat(bodyText);
           switch (cat) {
             case (null) {
-              Debug.print("cat not parsed");
               res.send({
                 status_code = 400;
                 headers = [];
