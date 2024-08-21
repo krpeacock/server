@@ -1,12 +1,10 @@
 import Utils "../src/Utils";
 import Test "mo:test";
-import Result "mo:base/Result";
-import TrieMap "mo:base/TrieMap";
-import Iter "mo:base/Iter";
-import Array "mo:base/Array";
+import HttpParser "mo:http-parser";
 let test = Test.test;
 let suite = Test.suite;
 let expect = Test.expect;
+
 
 suite(
 	"my test suite",
@@ -72,7 +70,43 @@ suite(
 
 				expect.result<Utils.PathParams, Text>(result, Utils.showPathParamsResult, Utils.pathParamsResultEqual).equal(#err("duplicate parameter name: " # "bar"));
 			},
-		)
+		);
 
+		test("Path that doesn't match the pattern", func() {
+			let pattern = "/foo/:bar";
+			let path = "/cat/bar";
+			let result = Utils.parsePathParams(pattern, path);
+
+			expect.result<Utils.PathParams, Text>(result, Utils.showPathParamsResult, Utils.pathParamsResultEqual).equal(#err("Path does not match the pattern. Expected: foo, got: cat"));
+		});
+
+
+		test("simplify route", func() {
+			let headers = HttpParser.Headers([]);
+			let route = "/foo//bar/";
+			let url = HttpParser.URL(route, headers);
+			let (simplified, _) = Utils.simplifyRoute(url);
+
+			expect.text(simplified).equal("/foo/bar");
+
+			let route1 = "/foo/bar";
+			let url1 = HttpParser.URL(route1, headers);
+			let (simplified1, _) = Utils.simplifyRoute(url1);
+
+			expect.text(simplified1).equal("/foo/bar");
+
+			let route2 = "/foo//bar";
+			let url2 = HttpParser.URL(route2, headers);
+			let (simplified2, _) = Utils.simplifyRoute(url2);
+
+			expect.text(simplified2).equal("/foo/bar");
+
+			let complicatedRoute = "/foo//bar/:baz/:qux///?test=1#header";
+			let complicatedUrl = HttpParser.URL(complicatedRoute, headers);
+			let (complicatdBase, complicatedFull) = Utils.simplifyRoute(complicatedUrl);
+
+			expect.text(complicatdBase).equal("/foo/bar/:baz/:qux");
+			expect.text(complicatedFull).equal("/foo/bar/:baz/:qux?test=1#header");
+		});
 	},
 );

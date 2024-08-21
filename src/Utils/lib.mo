@@ -3,6 +3,8 @@ import Text "mo:base/Text";
 import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import Result "mo:base/Result";
+import HttpParser "mo:http-parser";
+
 module {
 
   public type PathParams = TrieMap.TrieMap<Text, Text>;
@@ -23,9 +25,13 @@ module {
   public func parsePathParams(pattern : PathPattern, path : Path) : PathParamsResult {
     let map = TrieMap.TrieMap<Text, Text>(Text.equal, Text.hash);
 
-    let patternParts = Iter.toArray(Text.split(pattern, #text "/"));
+    // Convert the pattern and path to lowercase for case-insensitive comparison
+    let patternLower = Text.toLowercase(pattern);
+    let pathLower = Text.toLowercase(path);
+
+    let patternParts = Iter.toArray(Text.split(patternLower, #text "/"));
     let patternSize = patternParts.size();
-    let pathParts = Iter.toArray(Text.split(path, #text "/"));
+    let pathParts = Iter.toArray(Text.split(pathLower, #text "/"));
     let pathSize = pathParts.size();
 
     if (patternSize != pathSize) {
@@ -49,12 +55,16 @@ module {
             if (Text.size(name) == 0) {
               return #err("bad parameter name: " # patternParts[i]);
             };
-            if(map.get(name) != null) {
+            if (map.get(name) != null) {
               return #err("duplicate parameter name: " # name);
             };
             // Add the param to the map
             map.put(name, pathParts[i]);
           };
+        };
+      } else {
+        if (patternParts[i] != pathParts[i]) {
+          return #err("Path does not match the pattern. Expected: " # patternParts[i] # ", got: " # pathParts[i]);
         };
       };
     };
@@ -97,5 +107,28 @@ module {
         return false;
       };
     };
+  };
+
+  public func simplifyRoute(url: HttpParser.URL): (Text, Text) {
+    let parts = Iter.fromArray(url.path.array);
+    let simplified = 
+      Iter.filter(
+        parts,
+        func(part: Text): Bool {
+          return Text.size(part) > 0;
+        },
+      );
+    let baseRoute: Text = "/" # Text.join("/", simplified);
+    var fullRoute = baseRoute;
+
+    if(url.queryObj.original.size() > 0) {
+      fullRoute := fullRoute # "?" # url.queryObj.original;
+    };
+
+    if(url.anchor.size() > 0) {
+      fullRoute := fullRoute # "#" # url.anchor;
+    };
+
+    (Text.toLowercase((baseRoute)), Text.toLowercase(fullRoute));
   };
 };

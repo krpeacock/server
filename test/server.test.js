@@ -1,5 +1,4 @@
 import { expect, test, describe, afterAll } from "vitest";
-import fetch from "isomorphic-fetch";
 import canisterIds from "../.dfx/local/canister_ids.json";
 import mainnetIds from "../canister_ids.json";
 
@@ -155,9 +154,11 @@ describe(`compare with express`, () => {
     expect(json).toEqual(canisterJson);
   });
 
-  test.only(`should handle a single cat`, async () => {
+  test(`should handle a single cat`, async () => {
     const json = await awaitJson(`http://127.0.0.1:4999/cats/Sardine`);
+    console.log(createUrl(`/cats/Sardine`));
     const canisterJson = await awaitJson(createUrl(`/cats/Sardine`));
+    console.log(canisterJson);
     expect(json).toEqual(canisterJson);
   });
 });

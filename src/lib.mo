@@ -13,13 +13,21 @@ import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
+import TrieMap "mo:base/TrieMap";
+import Utils "Utils";
 
 module {
   // Public Types
   public type HttpRequest = Http.HttpRequest;
   public type HttpResponse = Http.HttpResponse;
 
-  public type Request = HttpParser.ParsedHttpRequest;
+  public type Request = {
+    method : Text;
+    url : HttpParser.URL;
+    headers : HttpParser.Headers;
+    body : ?HttpParser.Body;
+    params : ?TrieMap.TrieMap<Text, Text>;
+  };
 
   public type Response = {
     status_code : Nat16;
@@ -125,55 +133,110 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
+    /**
+    * iterates through the request handlers and finds the first one that matches the path
+    * @param path The path to match
+    * @returns The matching pattern and path parameters
+    */
+    private func findMatchingPattern(path : Text, map : HashMap.StableHashMap<Text, HttpFunction>) : ?(HttpFunction, Utils.PathParams) {
+      let entries = map.entries();
+      for (entry in entries) {
+        let (pattern, _) = entry;
+        switch (Utils.parsePathParams(pattern, path)) {
+          case (#ok params) {
+            let function = map.get(pattern);
+            switch (function) {
+              case (?f) {
+                return ?(f, params);
+              };
+              case null {
+                return null;
+              };
+            };
+          };
+          case (#err _) {
+            return null;
+          };
+        };
+      };
+      return null;
+    };
+
+    private func handleFunction(map : HashMap.StableHashMap<Text, HttpFunction>, req : Request, fallback : ?((Request) -> Response)) : async Response {
+
+      Debug.print("url: " # debug_show {
+        original = req.url.original;
+        path = req.url.path.array;
+      });
+      let (simplifiedBaseRoute, simplifiedFullRoute) = Utils.simplifyRoute(req.url);
+
+      Debug.print("simplifiedBaseRoute: " # simplifiedBaseRoute);
+      Debug.print("simplifiedFullRoute: " # simplifiedFullRoute);
+
+      ignore do ? {
+        // Check for an exact match, including query parameters
+        switch (map.get(simplifiedFullRoute)) {
+          case (?f) {
+            return await f(req);
+          };
+          case null {};
+        };
+
+        // Check for a match with the base route
+        switch (map.get(simplifiedBaseRoute)) {
+          case (?f) {
+            return await f(req);
+          };
+          case null {};
+        };
+
+        // Check for a match with a pattern
+        let maybePattern = findMatchingPattern(simplifiedBaseRoute, map);
+        switch (maybePattern) {
+          case (?(f, params)) {
+            let request = {
+              method = req.method;
+              url = req.url;
+              headers = req.headers;
+              body = req.body;
+              params = ?params;
+            };
+            return await f(request);
+          };
+          case null {};
+        };
+
+        // Check for a fallback
+        switch (fallback) {
+          case (?f) {
+            return f(req);
+          };
+          case null {};
+        };
+      };
+      missingResponse;
+    };
+
     private func process_request(req : Request) : async Response {
       switch (req.method) {
         case "GET" {
-          switch (getRequests.get(req.url.path.original)) {
-            case (?getFunction) {
-              await getFunction(req);
-            };
-            case null {
-              staticFallback(req);
-            };
-          };
+          let fallback = staticFallback;
+          await handleFunction(getRequests, req, ?fallback);
         };
         case "POST" {
-          switch (postRequests.get(req.url.path.original)) {
-            case (?postFunction) {
-              await postFunction(req);
-            };
-            case null {
-              missingResponse;
-            };
-          };
+          await handleFunction(postRequests, req, null);
         };
         case "PUT" {
-          switch (putRequests.get(req.url.path.original)) {
-            case (?putFunction) {
-              await putFunction(req);
-            };
-            case null {
-              missingResponse;
-            };
-          };
+          await handleFunction(putRequests, req, null);
         };
         case "DELETE" {
-          switch (deleteRequests.get(req.url.path.original)) {
-            case (?deleteFunction) {
-              await deleteFunction(req);
-            };
-            case null {
-              missingResponse;
-            };
-          };
+          await handleFunction(deleteRequests, req, null);
         };
         case _ {
           missingResponse;
         };
       };
     };
-
-
 
     private func staticFallback(req : Request) : Response {
       var b : Blob = Blob.fromArray([]);
@@ -247,8 +310,7 @@ module {
         case "DELETE" {
           deleteRequests.put(url, function);
         };
-        case _ {
-        };
+        case _ {};
       };
     };
     // Register a request handler that will be cached
@@ -372,6 +434,7 @@ module {
       var cachedResponse = cache.get(request);
       switch cachedResponse {
         case (?response) {
+          Debug.print("cachedResponse found for: " # request.url);
           {
             status_code = response.status_code;
             headers = joinArrays(response.headers, [cache.certificationHeader(request)]);
@@ -382,7 +445,7 @@ module {
         };
         case null {
           return {
-            status_code = 404;
+            status_code = 426;
             headers = [];
             body = Blob.fromArray([]);
             streaming_strategy = null;
@@ -394,9 +457,25 @@ module {
     };
 
     public func http_request_update(request : HttpRequest) : async HttpResponse {
+      // prune the cache
+      ignore cache.remove(request);
+
       // Application logic to process the request
       let req = HttpParser.parse(request);
-      let response = await process_request(req);
+
+      // Set the params to null - we will find a matching handler if there is one during the processing
+      let parsedrequest = {
+        method = req.method;
+        url = req.url;
+        headers = req.headers;
+        body = req.body;
+        params = null;
+      };
+
+      Debug.print("request url" # debug_show req.url.original);
+
+      let response = await process_request(parsedrequest);
+
       let formattedResponse = {
         status_code = response.status_code;
         headers = response.headers;

@@ -136,6 +136,7 @@ shared ({ caller = creator }) actor class () {
   server.get(
     "/cats",
     func(req : Request, res : ResponseClass) : async Response {
+      Debug.print("cats endpoint");
       var catJson = "[";
       for (cat in Iter.fromArray(cats)) {
         catJson := catJson # "{\"name\":\"" # cat.name # "\",\"age\":" # Nat.toText(cat.age) # "},";
@@ -154,32 +155,61 @@ shared ({ caller = creator }) actor class () {
   server.get(
     "/cats/:name",
     func(req : Request, res : ResponseClass) : async Response {
-      let name = req.url.path.array[1];
-
-      let cat = Array.find(
-        cats,
-        func(cat : Cat) : Bool {
-          cat.name == name;
-        },
-      );
-      switch cat {
+      Debug.print("cats/:name endpoint");
+      switch(req.params){
         case null {
           res.send({
-            status_code = 404;
+            status_code = 400;
             headers = [];
-            body = Text.encodeUtf8("Cat not found");
+            body = Text.encodeUtf8("Invalid path");
             streaming_strategy = null;
             cache_strategy = #noCache;
           });
         };
-        case (?cat) {
-          res.json({
-            status_code = 200;
-            body = "{\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}";
-            cache_strategy = #noCache;
-          });
+        case (?params) {
+          let name = params.get("name");
+          Debug.print("found cat with name: " # debug_show name);
+          switch name {
+            case null {
+              res.send({
+                status_code = 400;
+                headers = [];
+                body = Text.encodeUtf8("Invalid path");
+                streaming_strategy = null;
+                cache_strategy = #noCache;
+              });
+            };
+            case (? n) {
+              let cat = Array.find(
+                cats,
+                func(cat : Cat) : Bool {
+                  Text.toLowercase(cat.name) == Text.toLowercase(n);
+                },
+              );
+
+              Debug.print("found cat: " # debug_show cat);
+              switch cat {
+                case null {
+                  res.send({
+                    status_code = 404;
+                    headers = [];
+                    body = Text.encodeUtf8("Cat not found");
+                    streaming_strategy = null;
+                    cache_strategy = #noCache;
+                  });
+                };
+                case (?cat) {
+                  res.json({
+                    status_code = 200;
+                    body = "{\"name\":\"" # cat.name # "\", \"age\":" # Nat.toText(cat.age) # "}";
+                    cache_strategy = #noCache;
+                  });
+                };
+              };
+            };
+          };
         };
-      };
+      }
     },
   );
 
