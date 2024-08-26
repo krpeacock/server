@@ -60,7 +60,7 @@ module {
   public func yieldResponse(b : HttpResponse) : Blob { b.body };
 
   // Private Types
-  type HttpFunction = (Request) -> async Response;
+  type HttpFunction = (Request) -> async* Response;
   type RequestMap = HashMap.StableHashMap<Text, HttpFunction>;
 
   type CacheStrategy = {
@@ -162,14 +162,14 @@ module {
       return null;
     };
 
-    private func handleFunction(map : HashMap.StableHashMap<Text, HttpFunction>, req : Request, fallback : ?((Request) -> Response)) : async Response {
+    private func handleFunction(map : HashMap.StableHashMap<Text, HttpFunction>, req : Request, fallback : ?((Request) -> Response)) : async* Response {
       let (simplifiedBaseRoute, simplifiedFullRoute) = Utils.simplifyRoute(req.url);
 
       ignore do ? {
         // Check for an exact match, including query parameters
         switch (map.get(simplifiedFullRoute)) {
           case (?f) {
-            return await f(req);
+            return await* f(req);
           };
           case null {};
         };
@@ -177,7 +177,7 @@ module {
         // Check for a match with the base route
         switch (map.get(simplifiedBaseRoute)) {
           case (?f) {
-            return await f(req);
+            return await* f(req);
           };
           case null {};
         };
@@ -193,7 +193,7 @@ module {
               body = req.body;
               params = ?params;
             };
-            return await f(request);
+            return await* f(request);
           };
           case null {};
         };
@@ -209,20 +209,20 @@ module {
       missingResponse;
     };
 
-    private func process_request(req : Request) : async Response {
+    private func process_request(req : Request) : async* Response {
       switch (req.method) {
         case "GET" {
           let fallback = staticFallback;
-          await handleFunction(getRequests, req, ?fallback);
+          await* handleFunction(getRequests, req, ?fallback);
         };
         case "POST" {
-          await handleFunction(postRequests, req, null);
+          await* handleFunction(postRequests, req, null);
         };
         case "PUT" {
-          await handleFunction(putRequests, req, null);
+          await* handleFunction(putRequests, req, null);
         };
         case "DELETE" {
-          await handleFunction(deleteRequests, req, null);
+          await* handleFunction(deleteRequests, req, null);
         };
         case _ {
           missingResponse;
@@ -309,12 +309,12 @@ module {
     // Register a request handler that will be cached
     // GET requests are cached by default
     // POST, PUT, DELETE requests are not cached
-    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
+    private func registerRequestWithHandler(method : Text, path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       if (method == "GET") {
         registerRequest(
           method,
           path,
-          func(request : Request) : async Response {
+          func(request : Request) : async* Response {
             var response = handler(
               request,
               ResponseClass(
@@ -329,14 +329,14 @@ module {
                 }
               ),
             );
-            return await response;
+            return await* response;
           },
         );
       } else {
         registerRequest(
           method,
           path,
-          func(request : Request) : async Response {
+          func(request : Request) : async* Response {
             var response = handler(
               request,
               ResponseClass(
@@ -351,25 +351,25 @@ module {
                 }
               ),
             );
-            return await response;
+            return await* response;
           },
         );
       };
     };
 
-    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
+    public func get(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("GET", path, handler);
     };
 
-    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
+    public func post(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("POST", path, handler);
     };
 
-    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
+    public func put(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("PUT", path, handler);
     };
 
-    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> async Response) {
+    public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("DELETE", path, handler);
     };
 
@@ -448,7 +448,7 @@ module {
       };
     };
 
-    public func http_request_update(request : HttpRequest) : async HttpResponse {
+    public func http_request_update(request : HttpRequest) : async* HttpResponse {
       // prune the cache
       ignore cache.remove(request);
 
@@ -464,7 +464,7 @@ module {
         params = null;
       };
 
-      let response = await process_request(parsedrequest);
+      let response = await* process_request(parsedrequest);
 
       let formattedResponse = {
         status_code = response.status_code;
