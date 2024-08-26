@@ -5,22 +5,41 @@ import Iter "mo:base/Iter";
 import Result "mo:base/Result";
 import HttpParser "mo:http-parser";
 
+/**
+ * Utilities for the Server framework. You can use this to independently use functions used by server.
+ */
 module {
 
+  /**
+  A map of paths and the values. For use when parsing parameters from a path such as `/cats/:name`.
+   */
   public type PathParams = TrieMap.TrieMap<Text, Text>;
+  /**
+    A result type for parsing path parameters. See <a href="https://internetcomputer.org/docs/current/motoko/main/base/TrieMap/">TrieMap</a> for the TrieMap interface.
+    */
   public type PathParamsResult = Result.Result<PathParams, Text>;
+  /**
+    Type alias for the path portion of a URL
+    */
   public type PathPattern = Text;
+
+  /**
+    Type alias for the path portion of a URL
+    */
   public type Path = Text;
 
   /** Parses the path parameters from the given path using the given pattern.
-    *
-    * @param pattern The pattern to use for parsing the path.
-    * @param path The path to parse.
-    * @returns A map of the parsed path parameters.
-    * @example
-    * let pattern = "/cats/:name";
-    * let path = "/cats/sardine";
-    * let map = Utils.parsePathParams(pattern, path);
+  
+    @param {Text} PathPattern - The pattern to use for parsing the path.
+  
+    @param {Text} path - The path to parse.
+  
+    @returns {PathParamsResult} A Result containing a map of the parsed path parameters or an error message.
+  
+    @example
+    let pattern = "/cats/:name";
+    let path = "/cats/sardine";
+    let map = Utils.parsePathParams(pattern, path);
     */
   public func parsePathParams(pattern : PathPattern, path : Path) : PathParamsResult {
     let map = TrieMap.TrieMap<Text, Text>(Text.equal, Text.hash);
@@ -90,6 +109,13 @@ module {
     #ok map;
   };
 
+
+  /** Transforms a {@link PathParamsResult} into a textual representation.
+
+    @param {PathParamsResult} result - The path parameters result to show.
+
+    @returns {Text} A text representation of the path parameters result.
+    */
   public func showPathParamsResult(result : PathParamsResult) : Text {
     switch result {
       case (#ok map) {
@@ -101,6 +127,14 @@ module {
     };
   };
 
+  /**
+    Compares two {@link PathParamsResult} values for equality.
+
+    @param {PathParamsResult} a - The first value to compare.
+    @param {PathParamsResult} b - The second value to compare.
+
+    @returns {Bool} `true` if the values are equal, `false` otherwise.
+    */
   public func pathParamsResultEqual(a : PathParamsResult, b : PathParamsResult) : Bool {
     switch (a, b) {
       case ((#ok a), (#ok b)) {
@@ -127,6 +161,13 @@ module {
     };
   };
 
+  /**
+    Converts a {HttpParser.URL} url into a simplified route, without empty parts, case-insensitive, and without trailing slashes.
+    
+    @param {PathParamsResult} url - The URL to simplify.
+
+    @returns {(Text, Text)} - The base route (without query parameters and anchor) and the full route (with query parameters and anchor).
+    */
   public func simplifyRoute(url : HttpParser.URL) : (Text, Text) {
     let parts = Iter.fromArray(url.path.array);
     let simplified = Iter.filter(

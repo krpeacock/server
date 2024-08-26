@@ -152,13 +152,13 @@ See the `examples` directory for examples of how to use this library. These exam
 ## Roadmap
 
 - [ ] `PATCH` requests
-- [ ] `path/:id` routes
-- [ ] `path/:id/:id2` routes
+- [X] `path/:id` routes
+- [X] `path/:id/:id2` routes
 - [ ] `*` selector
 - [ ] `/*` selectors
 - [ ] `path/*` selectors
 - [ ] `*.ext` selectors
-- [x] Asset Canister (`icx-asset` support)
+- [X] Asset Canister (`icx-asset` support)
 - [ ] `res.redirect`
 - [ ] `res.sendFile`
 - [ ] `res.download`
