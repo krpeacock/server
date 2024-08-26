@@ -1,7 +1,6 @@
 import CertifiedCache "mo:certified-cache";
 import Assets "mo:assets";
 import AssetTypes "mo:assets/Types";
-import Http "mo:certified-cache/Http";
 import HashMap "mo:StableHashMap/ClassStableHashMap";
 import Text "mo:base/Text";
 import Array "mo:base/Array";
@@ -9,6 +8,8 @@ import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Hash "mo:base/Hash";
 import HttpParser "mo:http-parser";
+import HttpParserTypes "mo:http-parser/Types";
+import Http "mo:http-types";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Buffer "mo:base/Buffer";
@@ -18,45 +19,168 @@ import Utils "Utils";
 
 module {
   // Public Types
-  public type HttpRequest = Http.HttpRequest;
-  public type HttpResponse = Http.HttpResponse;
+  
+  /**
+    An incoming HTTP request. See <a href="https://mops.one/http-types/docs#type.Request">Http Type</a> documentation
+    
+    public type HttpRequest = {
+      url : Text;
+      method : Text;
+      headers : [Header];
+      body : Blob;
+    } and {
+      certificate_version : ?Nat16;
+    };
+    */
+  public type HttpRequest = Http.Request;
 
+  /**
+    An outgoing HTTP response. See <a href="https://mops.one/http-types/docs#type.Response">Http Type</a> documentation
+    
+    public type HttpResponse = {
+      status_code : Nat16;
+      headers : [Header];
+      body : Blob;
+      streaming_strategy : ?StreamingStrategy;
+    };
+
+    */
+  public type HttpResponse = Http.Response;
+
+  /**
+    A parsed URL.
+
+    public type URL = {
+      original: Text;
+      protocol: Text ;
+      port: Nat16; 
+      host: {
+          original: Text;
+          array: [Text];
+      };
+      path: {
+          original: Text;
+          array: [Text];
+      };
+      queryObj: {
+          original: Text;
+          get: (Text) -> ?Text;
+          trieMap: TrieMap.TrieMap<Text, Text>;
+          keys: [Text]; 
+      };
+      anchor: Text; 
+    };
+    */
+  public type URL = HttpParserTypes.URL;
+
+  /**
+    A serialized entry for the server, processed using the Utils.parsePathParams method.
+
+    public type Request = {
+      method : Text;
+      url : URL;
+      headers : HttpParserTypes.Headers;
+      body : ?HttpParserTypes.Body;
+      params : ?TrieMap.TrieMap<Text, Text>;
+    };
+    */
   public type Request = {
     method : Text;
-    url : HttpParser.URL;
-    headers : HttpParser.Headers;
-    body : ?HttpParser.Body;
+    url : URL;
+    headers : HttpParserTypes.Headers;
+    body : ?HttpParserTypes.Body;
     params : ?TrieMap.TrieMap<Text, Text>;
   };
 
+  /**
+    A Response, along with a `cache_strategy` for the `certified-cache` module.
+
+    public type Response = {
+      status_code : Nat16;
+      headers : [Header];
+      body : Blob;
+      streaming_strategy : ?StreamingStrategy;
+      cache_strategy : CacheStrategy;
+    };
+    */
   public type Response = {
     status_code : Nat16;
-    headers : [Http.HeaderField];
+    headers : [Http.Header];
     body : Blob;
     streaming_strategy : ?Http.StreamingStrategy;
     cache_strategy : CacheStrategy;
   };
 
+  /**
+    A set of stable structures used to serialize to and from for upgrades. This hydrates the certified cache, assets, and authorized principals.
+
+    public type SerializedEntries = ([(HttpRequest, (HttpResponse, Nat))], [(AssetTypes.Key, Assets.StableAsset)], [Principal]);
+
+    @example
+    ```mo
+    let serializedEntries : SerializedEntries = ([], [], [controller_principals]);
+    ```
+    */
   public type SerializedEntries = ([(HttpRequest, (HttpResponse, Nat))], [(AssetTypes.Key, Assets.StableAsset)], [Principal]);
 
+  /**
+    A path to an asset. It's just Text.
+
+    public type Path = Assets.Path;
+    */
   public type Path = Assets.Path;
+
+  /**
+    Contents of an asset. It's just Blob.
+
+    public type Contents = Assets.Contents;
+    */
   public type Contents = Assets.Contents;
 
   // Public Functions
 
-  // Compare two requests
+  /**
+    Compare two requests. Used to initialize the cache. Default strategy just checks the URL.
+
+    @param {HttpRequest} req1 - The first request
+
+    @param {HttpRequest} req2 - The second request
+
+    @returns {Bool} - Whether the requests are equal
+    */
   public func compareRequests(req1 : HttpRequest, req2 : HttpRequest) : Bool {
     req1.url == req2.url;
   };
-  // Hash a request
+  
+  /**
+    Hash a request.
+
+    @param {HttpRequest} req - The request to hash
+
+    @returns {Hash.Hash} - The hash of the request
+    */
   public func hashRequest(req : HttpRequest) : Hash.Hash {
     Text.hash(req.url);
   };
-  // Encode a request
+  
+  /**
+    Encode a request as a Blob.
+
+    @param {HttpRequest} req - The request to encode
+
+    @returns {Blob} - The encoded request
+    */
   public func encodeRequest(req : HttpRequest) : Blob {
     Text.encodeUtf8(req.url);
   };
-  // Yield a response
+
+  /**
+    Yield the response from a response.
+
+    @param {HttpResponse} b - The response to yield
+
+    @returns {Blob} - The response body
+    */
   public func yieldResponse(b : HttpResponse) : Blob { b.body };
 
   // Private Types
@@ -71,11 +195,24 @@ module {
 
   type BasicResponse = {
     status_code : Nat16;
-    headers : [Http.HeaderField];
+    headers : [Http.Header];
     body : Blob;
     streaming_strategy : ?Http.StreamingStrategy;
   };
 
+  /**
+    A server that handles HTTP requests and responses. It includes a cache, assets, and authorized principals.
+
+    Variables:
+
+    - `authorized` {[Principal]} - The authorized principals for modifying assets
+    - `cache` {CertifiedCache<HttpRequest, HttpResponse>} - The cache for the server
+    - `assets` {Assets} - The assets for the server
+
+    public class Server = {
+      serializedEntries : SerializedEntries;
+    };
+    */
   public class Server({
     serializedEntries : SerializedEntries;
   }) {
@@ -133,10 +270,13 @@ module {
 
     var deleteRequests = HashMap.StableHashMap<Text, HttpFunction>(0, Text.equal, Text.hash);
 
-    /**
-    * iterates through the request handlers and finds the first one that matches the path
-    * @param path The path to match
-    * @returns The matching pattern and path parameters
+    /** iterates through the request handlers and finds the first one that matches the path
+
+    @param {Text} path - The path to match
+
+    @param {HashMap.StableHashMap<Text, HttpFunction>} map - The map of request handlers
+
+    @returns {?(HttpFunction, Utils.PathParams)} An optional Tuple matching the pattern and path parameters
     */
     private func findMatchingPattern(path : Text, map : HashMap.StableHashMap<Text, HttpFunction>) : ?(HttpFunction, Utils.PathParams) {
       let entries = map.entries();
@@ -283,11 +423,25 @@ module {
 
     };
 
+    /** Handler to register for streaming callback, if you are handling multi-part requests
+      
+      @param {AssetTypes.StreamingCallbackToken} token - The token for the streaming callback
+      
+      @returns {AssetTypes.StreamingCallbackHttpResponse} - The response from the streaming callback
+    */
     public func http_request_streaming_callback(token : AssetTypes.StreamingCallbackToken) : async AssetTypes.StreamingCallbackHttpResponse {
       assets.http_request_streaming_callback(token);
     };
 
-    // Insert request handlers into maps based on method
+    /**
+      Register a request handler for a given method and URL.
+
+      @param {Text} method - The HTTP method to handle
+
+      @param {Text} url - The URL to handle
+
+      @param {HttpFunction} function - The function to handle the request
+    */
     public func registerRequest(method : Text, url : Text, function : HttpFunction) {
       let lowercaseUrl = Text.toLowercase(url);
       switch (method) {
@@ -357,28 +511,103 @@ module {
       };
     };
 
+    /**
+      Register a GET request handler for a given path or pattern.
+
+      @param {Text} path - The URL to handle
+
+      @param {HttpFunction} function - The function to handle the request
+
+      @example
+      ```mo
+      server.get("/hello", func(request : Request, response : ResponseClass) : async* Response {
+        return response.json({
+          status_code = 200,
+          body = "Hello, World!",
+          cache_strategy = #default,
+        });
+      });
+      ```
+    */
     public func get(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("GET", path, handler);
     };
 
+    /**
+      Register a POST request handler for a given path or pattern.
+
+      @param {Text} path - The URL to handle
+
+      @param {HttpFunction} function - The function to handle the request
+
+      @example
+      ```mo
+      server.post("/hello", func(request : Request, response : ResponseClass) : async* Response {
+        let obj = request.url.queryObj;
+
+        switch (obj.get("name")){
+          case (?name) {
+            return response.json({
+              status_code = 200,
+              body = "Hello, " + name + "!",
+              cache_strategy = #default,
+            });
+          };
+          case null {
+            return response.json({
+              status_code = 400,
+              body = "Name not provided",
+              cache_strategy = #noCache,
+            });
+          };
+        };
+      });
+      ```
+    */
     public func post(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("POST", path, handler);
     };
 
+    /** 
+      Register a PUT request handler for a given path or pattern.
+
+      @param {Text} path - The URL to handle
+
+      @param {HttpFunction} function - The function to handle the request
+    */
     public func put(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("PUT", path, handler);
     };
 
+    /** 
+      Register a DELETE request handler for a given path or pattern.
+
+      @param {Text} path - The URL to handle
+
+      @param {HttpFunction} function - The function to handle the request
+    */
     public func delete(path : Text, handler : (request : Request, response : ResponseClass) -> async* Response) {
       registerRequestWithHandler("DELETE", path, handler);
     };
 
+    /**
+      Serialize the server to a set of stable structures.
+
+      @returns {SerializedEntries} - The serialized entries
+    */
     public func entries() : SerializedEntries {
       let serializedAssets = assets.entries();
       let (stableAssets, _) = serializedAssets;
       (cache.entries(), stableAssets, authorized);
     };
 
+    /**
+      Check if a principal is authorized to update the assets.
+
+      @param {Principal} caller - The principal to check
+
+      @returns {Bool} - Whether the principal is authorized
+    */
     public func isAuthorized(caller : Principal) : Bool {
       func eq(value : Principal) : Bool = value == caller;
       Array.find(authorized, eq) != null;
@@ -387,6 +616,10 @@ module {
     // #endregion
 
     // #region Bindings
+
+    /**
+      Empty the cache.
+    */
     public func empty_cache() {
       cache := CertifiedCache.fromEntries<HttpRequest, HttpResponse>(
         [],
@@ -398,6 +631,13 @@ module {
       );
     };
 
+    /**
+      Remove a path from the cache.
+
+      @param {Principal} caller - The principal to authorize the removal
+
+      @param {Path} path - The path to remove
+    */
     public func remove_from_cache(
       {
         caller;
@@ -410,7 +650,7 @@ module {
       };
       let foundInCache = Iter.filter(
         cache.keys(),
-        func(key : Http.HttpRequest) : Bool {
+        func(key : HttpRequest) : Bool {
           key.url == path;
         },
       );
@@ -418,11 +658,26 @@ module {
         ignore cache.remove(key);
       };
     };
+
     public type RemoveFromCacheProps = {
       path : Path;
       caller : Principal;
     };
 
+    /**
+      Binding to attach to the HTTP request handler in your actor.
+
+      @param {HttpRequest} request - The incoming HTTP request
+
+      @returns {HttpResponse} - The outgoing HTTP response
+
+      @example
+      ```mo
+      public query func http_request(req : HttpRequest) : async HttpResponse {
+        server.http_request(req);
+      };
+      ```
+    */
     public func http_request(request : HttpRequest) : HttpResponse {
       var cachedResponse = cache.get(request);
       switch cachedResponse {
@@ -448,6 +703,20 @@ module {
       };
     };
 
+    /**
+      Binding to attach to the HTTP request handler in your actor.
+
+      @param {HttpRequest} request - The incoming HTTP request
+
+      @returns {HttpResponse} - The outgoing HTTP response
+
+      @example
+      ```mo
+      public func http_request_update(req : HttpRequest) : async HttpResponse {
+        await server.http_request_update(req);
+      };
+      ```
+    */
     public func http_request_update(request : HttpRequest) : async* HttpResponse {
       // prune the cache
       ignore cache.remove(request);
