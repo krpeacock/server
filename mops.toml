@@ -1,6 +1,6 @@
 [package]
 name = "server"
-version = "1.0.0"
+version = "2.0.0"
 description = "An express-like server for Motoko"
 repository = "https://github.com/krpeacock/server"
 keywords = [
