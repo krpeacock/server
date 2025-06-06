@@ -1,6 +1,8 @@
 # Server changelog
 
-## unreleased
+# Unreleased
+
+## 2.0.0
 
 - switches from `async` and `await` tags to `async*` and `await*` tags for handlers.
   - This unfortunately is a breaking change for syntax, but these tags will allow handlers to respond without a self-call during cached request handling, and will improve performance for certification v2.
