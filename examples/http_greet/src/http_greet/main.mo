@@ -20,7 +20,7 @@ shared ({ caller = creator }) actor class () {
 
   server.post(
     "/greet",
-    func(req : Request, res : ResponseClass) : async* Response {
+    func(req : Request, res : ResponseClass) : async Response {
       let parsedName = req.url.queryObj.get("name");
       var name = "";
       switch parsedName {
@@ -42,7 +42,7 @@ shared ({ caller = creator }) actor class () {
 
   server.get(
     "/foo",
-    func(req : Request, res : ResponseClass) : async* Response {
+    func(req : Request, res : ResponseClass) : async Response {
       res.send({
         status_code = 200;
         headers = [("Content-Type", "text/html")];
@@ -53,14 +53,14 @@ shared ({ caller = creator }) actor class () {
     },
   );
 
-  public shared ({ caller }) func authorize(other : Principal) : async* () {
+  public shared ({ caller }) func authorize(other : Principal) : async () {
     server.authorize({
       caller;
       other;
     });
   };
 
-  public query func retrieve(path : Assets.Path) : async* Assets.Contents {
+  public query func retrieve(path : Assets.Path) : async Assets.Contents {
     assets.retrieve(path);
   };
 
@@ -72,14 +72,14 @@ shared ({ caller = creator }) actor class () {
       content : Blob;
       sha256 : ?Blob;
     }
-  ) : async* () {
+  ) : async () {
     server.store({
       caller;
       arg;
     });
   };
 
-  public query func list(arg : {}) : async* [T.AssetDetails] {
+  public query func list(arg : {}) : async [T.AssetDetails] {
     assets.list(arg);
   };
 
@@ -88,7 +88,7 @@ shared ({ caller = creator }) actor class () {
       key : T.Key;
       accept_encodings : [Text];
     }
-  ) : async* ({
+  ) : async ({
     content : Blob;
     content_type : Text;
     content_encoding : Text;
@@ -98,7 +98,7 @@ shared ({ caller = creator }) actor class () {
     assets.get(arg);
   };
 
-  public shared ({ caller }) func create_batch(arg : {}) : async* ({
+  public shared ({ caller }) func create_batch(arg : {}) : async ({
     batch_id : T.BatchId;
   }) {
     assets.create_batch({
@@ -112,7 +112,7 @@ shared ({ caller = creator }) actor class () {
       batch_id : T.BatchId;
       content : Blob;
     }
-  ) : async* ({
+  ) : async ({
     chunk_id : T.ChunkId;
   }) {
     assets.create_chunk({
@@ -121,42 +121,42 @@ shared ({ caller = creator }) actor class () {
     });
   };
 
-  public shared ({ caller }) func commit_batch(args : T.CommitBatchArguments) : async* () {
+  public shared ({ caller }) func commit_batch(args : T.CommitBatchArguments) : async () {
     assets.commit_batch({
       caller;
       args;
     });
   };
 
-  public shared ({ caller }) func create_asset(arg : T.CreateAssetArguments) : async* () {
+  public shared ({ caller }) func create_asset(arg : T.CreateAssetArguments) : async () {
     assets.create_asset({
       caller;
       arg;
     });
   };
 
-  public shared ({ caller }) func set_asset_content(arg : T.SetAssetContentArguments) : async* () {
+  public shared ({ caller }) func set_asset_content(arg : T.SetAssetContentArguments) : async () {
     assets.set_asset_content({
       caller;
       arg;
     });
   };
 
-  public shared ({ caller }) func unset_asset_content(args : T.UnsetAssetContentArguments) : async* () {
+  public shared ({ caller }) func unset_asset_content(args : T.UnsetAssetContentArguments) : async () {
     assets.unset_asset_content({
       caller;
       args;
     });
   };
 
-  public shared ({ caller }) func delete_asset(args : T.DeleteAssetArguments) : async* () {
+  public shared ({ caller }) func delete_asset(args : T.DeleteAssetArguments) : async () {
     assets.delete_asset({
       caller;
       args;
     });
   };
 
-  public shared ({ caller }) func clear(args : T.ClearArguments) : async* () {
+  public shared ({ caller }) func clear(args : T.ClearArguments) : async () {
     assets.clear({
       caller;
       args;
@@ -165,7 +165,7 @@ shared ({ caller = creator }) actor class () {
 
   public type StreamingStrategy = {
     #Callback : {
-      callback : shared query StreamingCallbackToken -> async* StreamingCallbackHttpResponse;
+      callback : shared query StreamingCallbackToken -> async StreamingCallbackHttpResponse;
       token : StreamingCallbackToken;
     };
   };
@@ -182,14 +182,14 @@ shared ({ caller = creator }) actor class () {
     token : ?StreamingCallbackToken;
   };
 
-  public query func http_request_streaming_callback(token : T.StreamingCallbackToken) : async* StreamingCallbackHttpResponse {
+  public query func http_request_streaming_callback(token : T.StreamingCallbackToken) : async StreamingCallbackHttpResponse {
     assets.http_request_streaming_callback(token);
   };
-  public query func http_request(req : HttpRequest) : async* HttpResponse {
+  public query func http_request(req : HttpRequest) : async HttpResponse {
     server.http_request(req);
   };
-  public func http_request_update(req : HttpRequest) : async* HttpResponse {
-    await* server.http_request_update(req);
+  public func http_request_update(req : HttpRequest) : async HttpResponse {
+    await server.http_request_update(req);
   };
 
   /**

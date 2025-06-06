@@ -213,7 +213,3 @@ These functions are used internally by the library, but are also exported for us
     - Encodes a request as a blob
 - `public func yieldResponse(b : HttpResponse) : Blob`
     - Encodes a response as a blob
-
-## Credits
-
-This project currently copies the `http-parser` library into its source tree. This is because the `http-parser` library is not currently installable as a package on `mops`. Source code is available at https://github.com/NatLabs/http-parser.mo

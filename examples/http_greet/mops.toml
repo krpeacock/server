@@ -1,9 +1,10 @@
 [package]
 name = "http_hello"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 repository = ""
 
 [dependencies]
 certified-cache = "0.2.0"
 assets = "0.2.0"
+http-parser = "0.3.1"
