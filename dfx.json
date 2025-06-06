@@ -19,7 +19,7 @@
   },
   "defaults": {
     "build": {
-      "packtool": "mops sources"
+      "packtool": "npx mops sources"
     }
   }
 }
