@@ -15,8 +15,8 @@ const Ids = require("../../.dfx/local/canister_ids.json");
 
 const HOST = `http://127.0.0.1:4943`;
 // const HOST = "https://icp-api.io";
-// const canisterId = Ids["http_greet"]["local"];
-const canisterId = "u6s2n-gx777-77774-qaaba-cai";
+const canisterId = Ids["http_greet"]["local"];
+// const canisterId = "u6s2n-gx777-77774-qaaba-cai";
 // const canisterId = "qg33c-4aaaa-aaaab-qaica-cai";
 
 console.log(`canisterId: ${canisterId}`);
